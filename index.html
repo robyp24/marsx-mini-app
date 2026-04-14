@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarsX Rocket</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+        .container {
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            color: #e0e0e0;
+            font-size: 24px;
+        }
+        .planet {
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .planet:hover {
+            background-color: #2a2a2a;
+        }
+        .planet-name {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .planet-info {
+            font-size: 14px;
+            color: #bbbbbb;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #252525;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🚀 MarsX Rocket</h1>
+        <div id="status" class="status">
+            <p>Загрузка данных...</p>
+        </div>
+        <div id="planets">
+            <!-- Кнопки планет будут вставлены сюда с помощью JavaScript -->
+        </div>
+    </div>
+
+    <!-- Подключаем "мозг" нашего приложения -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="script.js"></script>
+
+</body>
+</html>
