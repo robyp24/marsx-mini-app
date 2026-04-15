@@ -40,7 +40,7 @@
         .container {
             position: relative;
             z-index: 1;
-            display: flex;
+            display: none; /* Изначально скрыт, покажем через JS */
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
@@ -108,6 +108,10 @@
             background-color: rgba(255, 77, 77, 0.2);
             transform: scale(1.05);
         }
+        .planet:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
         .planet-info {
             text-align: left;
         }
@@ -156,7 +160,6 @@
             <h1>🚀 MarsX Rocket</h1>
             <div id="status" class="status-bar">
                 <p>Загрузка данных...</p>
-                <p>тест</p>
             </div>
         </div>
 
@@ -165,8 +168,7 @@
         </div>
 
         <div id="planets" class="planets">
-            <p>кнопка тест 1</p>
-            <!-- Кнопки планет будут вставлены сюда -->
+            <!-- Кнопки планет будут вставлены сюда JS -->
         </div>
     </div>
 
