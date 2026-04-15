@@ -17,8 +17,9 @@ function initTelegramApp() {
     // Расширяем окно на всю высоту
     tg.expand();
 
-    // Показываем основное приложение
-    document.getElementById('main-app').style.display = 'block';
+    // Показываем основное приложение, скрывая загрузку
+    document.getElementById('status').innerHTML = '<p>Инициализация...</p>';
+    document.querySelector('.container').style.display = 'flex';
 
     // Загружаем данные пользователя
     loadUserData();
@@ -40,23 +41,55 @@ async function loadUserData() {
 
         if (result.status === 'success') {
             const data = result.data;
-            document.getElementById('gc-balance').textContent = data.gc_balance;
-            document.getElementById('ci-score').textContent = data.ci_score;
-            document.getElementById('status').textContent = 'На планете';
-            isFlightInProgress = (data.state === 'in_flight');
-            if (isFlightInProgress) {
-                document.getElementById('status').textContent = 'В полете...';
-                disablePlanetButtons();
-            }
+            // Обновляем данные в интерфейсе
+            updateUI(data);
         } else {
             console.error(`[loadUserData] Ошибка от сервера: ${result.message}`);
             // Если пользователя нет, возможно, он не нажал /start в боте
-            document.getElementById('status').textContent = 'Ошибка: Нажмите /start в боте';
+            document.getElementById('status').innerHTML = '<p>Ошибка: Нажмите /start в боте</p>';
         }
     } catch (error) {
         console.error('[loadUserData] Произошла ошибка:', error);
-        document.getElementById('status').textContent = 'Не удалось загрузить данные. Проверьте подключение.';
+        document.getElementById('status').innerHTML = '<p>Не удалось загрузить данные. Проверьте подключение.</p>';
     }
+}
+
+// --- Функция для обновления интерфейса ---
+function updateUI(data) {
+    document.getElementById('status').innerHTML = `<p>Привет, ${user.first_name}! Баланс: ${data.gc_balance} GC | CI: ${data.ci_score}</p>`;
+    isFlightInProgress = (data.state === 'in_flight');
+    if (isFlightInProgress) {
+        disablePlanetButtons();
+    } else {
+        enablePlanetButtons();
+    }
+    renderPlanets(); // Рендерим кнопки планет
+}
+
+// --- Рендеринг кнопок планет ---
+function renderPlanets() {
+    const planetsContainer = document.getElementById('planets');
+    planetsContainer.innerHTML = ''; // Очищаем контейнер
+
+    const planets = [
+        { key: 'moon', name: 'Луна', duration: '1 мин', reward: '12 GC', risk: '8%', icon: '🌙' },
+        { key: 'mars', name: 'Марс', duration: '2 мин', reward: '25 GC', risk: '34%', icon: '🔴' },
+        { key: 'jupiter', name: 'Юпитер', duration: '3 мин', reward: '50 GC', risk: '71%', icon: '🟠' }
+    ];
+
+    planets.forEach(planet => {
+        const button = document.createElement('div');
+        button.className = 'planet';
+        button.innerHTML = `
+            <div class="planet-info">
+                <div class="planet-name">${planet.name}</div>
+                <div class="planet-stats">Длительность: ${planet.duration} | Награда: ${planet.reward} | Риск: ${planet.risk}</div>
+            </div>
+            <div class="planet-icon">${planet.icon}</div>
+        `;
+        button.onclick = () => startFlight(planet.key);
+        planetsContainer.appendChild(button);
+    });
 }
 
 // --- Инициализация полета ---
@@ -88,7 +121,7 @@ async function startFlight(planetKey) {
 
         if (result.status === 'success') {
             const planet = result.planet;
-            document.getElementById('status').textContent = `Полет на ${planet.name}...`;
+            document.getElementById('status').innerHTML = `<p>Полет на ${planet.name}...</p>`;
             isFlightInProgress = true;
             disablePlanetButtons();
             startFlightAnimation(planet.duration_min * 60); // Длительность в секундах
@@ -105,29 +138,31 @@ async function startFlight(planetKey) {
 
 // --- UI и анимации ---
 function disablePlanetButtons() {
-    document.querySelectorAll('.planet-button').forEach(button => {
+    document.querySelectorAll('.planet').forEach(button => {
         button.disabled = true;
         button.style.opacity = '0.5';
+        button.style.cursor = 'not-allowed';
     });
 }
 
 function enablePlanetButtons() {
-    document.querySelectorAll('.planet-button').forEach(button => {
+    document.querySelectorAll('.planet').forEach(button => {
         button.disabled = false;
         button.style.opacity = '1';
+        button.style.cursor = 'pointer';
     });
 }
 
 function startFlightAnimation(durationSeconds) {
     const rocket = document.getElementById('rocket');
-    rocket.classList.add('flying');
+    rocket.classList.add('in-flight');
     
     // Таймер для обратного отсчета
     let timeLeft = durationSeconds;
     const timerInterval = setInterval(() => {
         const minutes = Math.floor(timeLeft / 60);
         const seconds = timeLeft % 60;
-        document.getElementById('status').textContent = `В полете... ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        document.getElementById('status').innerHTML = `<p>В полете... ${minutes}:${seconds.toString().padStart(2, '0')}</p>`;
         timeLeft--;
 
         if (timeLeft < 0) {
@@ -139,13 +174,12 @@ function startFlightAnimation(durationSeconds) {
 
 function endFlight() {
     const rocket = document.getElementById('rocket');
-    rocket.classList.remove('flying');
-    document.getElementById('status').textContent = 'Полет завершен!';
+    rocket.classList.remove('in-flight');
+    document.getElementById('status').innerHTML = '<p>Полет завершен!</p>';
     tg.showAlert('Полет завершен! Награда зачислена.');
     
     isFlightInProgress = false;
     loadUserData(); // Перезагружаем данные, чтобы обновить баланс
-    enablePlanetButtons();
 }
 
 
@@ -154,6 +188,6 @@ window.onload = function() {
     if (window.Telegram) {
         initTelegramApp();
     } else {
-        document.getElementById('status').textContent = 'Ошибка: Telegram WebApp не найден.';
+        document.getElementById('status').innerHTML = '<p>Ошибка: Telegram WebApp не найден.</p>';
     }
 };
