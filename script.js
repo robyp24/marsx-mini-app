@@ -6,7 +6,7 @@ let isFlightInProgress = false;
 
 // --- Конфигурация API ---
 // ВАЖНО: Замените эту ссылку на вашу актуальную ссылку от ngrok!
-const API_URL = 'https://uncrown-untie-playset.ngrok-free.dev'; 
+const API_URL = 'https://humbly-petunia-customs.ngrok-free.dev'; 
 
 // --- Инициализация Telegram WebApp ---
 function initTelegramApp() {
