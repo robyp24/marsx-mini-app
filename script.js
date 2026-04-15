@@ -29,7 +29,11 @@ function initTelegramApp() {
 async function loadUserData() {
     console.log(`[loadUserData] Начало загрузки данных для пользователя: ${tg_user_id}`);
     try {
-        const response = await fetch(`${API_URL}/user_data?telegram_id=${tg_user_id}`);
+        const response = await fetch(`${API_URL}/user_data?telegram_id=${tg_user_id}`, {
+  headers: {
+    'ngrok-skip-browser-warning': 'true'
+  }
+});
         console.log(`[loadUserData] Ответ от сервера: ${response.status}`);
         
         if (!response.ok) {
@@ -106,15 +110,13 @@ async function startFlight(planetKey) {
 
     try {
         const response = await fetch(`${API_URL}/start_flight`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                telegram_id: tg_user_id,
-                planet_key: planetKey
-            })
-        });
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true' // <--- ДОБАВИТЬ ЭТУ СТРОКУ
+    },
+    body: JSON.stringify({ ... })
+});
 
         const result = await response.json();
         console.log(`[startFlight] Ответ от сервера:`, result);
