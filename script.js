@@ -6,7 +6,7 @@ let isFlightInProgress = false;
 
 // --- Конфигурация API ---
 // ВАЖНО: Замените эту ссылку на вашу актуальную ссылку от ngrok!
-const API_URL = 'https://humbly-petunia-customs.ngrok-free.dev'; 
+const API_URL = 'https://uncrown-untie-playset.ngrok-free.dev'; 
 
 // --- Инициализация Telegram WebApp ---
 function initTelegramApp() {
@@ -119,7 +119,7 @@ async function startFlight(planetKey) {
             body: JSON.stringify({
                 telegram_id: tg_user_id,
                 planet_key: planetKey
-            }
+            })
         });
 
         const result = await response.json();
