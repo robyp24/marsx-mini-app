@@ -10,14 +10,25 @@ const API_URL = 'https://humbly-petunia-customs.ngrok-free.dev';
 
 // --- Инициализация Telegram WebApp ---
 function initTelegramApp() {
+    if (!window.Telegram) {
+        document.getElementById('status').innerHTML = '<p>Ошибка: Telegram WebApp не найден.</p>';
+        return;
+    }
+
     tg = window.Telegram.WebApp;
     user = tg.initDataUnsafe.user;
+
+    if (!user) {
+        document.getElementById('status').innerHTML = '<p>Ошибка: Данные пользователя не найдены.</p>';
+        return;
+    }
+
     tg_user_id = user.id;
 
     // Расширяем окно на всю высоту
     tg.expand();
 
-    // Показываем основное приложение, скрывая загрузку
+    // Показываем основное приложение
     document.getElementById('status').innerHTML = '<p>Инициализация...</p>';
     document.querySelector('.container').style.display = 'flex';
 
@@ -29,7 +40,6 @@ function initTelegramApp() {
 async function loadUserData() {
     console.log(`[loadUserData] Начало загрузки данных для пользователя: ${tg_user_id}`);
     try {
-        // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
         const response = await fetch(`${API_URL}/user_data?telegram_id=${tg_user_id}`, {
             headers: {
                 'ngrok-skip-browser-warning': 'true'
@@ -46,7 +56,6 @@ async function loadUserData() {
 
         if (result.status === 'success') {
             const data = result.data;
-            // Обновляем данные в интерфейсе
             updateUI(data);
         } else {
             console.error(`[loadUserData] Ошибка от сервера: ${result.message}`);
@@ -109,12 +118,11 @@ async function startFlight(planetKey) {
     tg.MainButton.disable();
 
     try {
-        // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
         const response = await fetch(`${API_URL}/start_flight`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true' // <--- ВОТ ОНО
+                'ngrok-skip-browser-warning': 'true'
             },
             body: JSON.stringify({
                 telegram_id: tg_user_id,
@@ -189,9 +197,5 @@ function endFlight() {
 
 // --- Запуск приложения при загрузке страницы ---
 window.onload = function() {
-    if (window.Telegram) {
-        initTelegramApp();
-    } else {
-        document.getElementById('status').innerHTML = '<p>Ошибка: Telegram WebApp не найден.</p>';
-    }
+    initTelegramApp();
 };
