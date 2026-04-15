@@ -29,11 +29,12 @@ function initTelegramApp() {
 async function loadUserData() {
     console.log(`[loadUserData] Начало загрузки данных для пользователя: ${tg_user_id}`);
     try {
+        // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
         const response = await fetch(`${API_URL}/user_data?telegram_id=${tg_user_id}`, {
-  headers: {
-    'ngrok-skip-browser-warning': 'true'
-  }
-});
+            headers: {
+                'ngrok-skip-browser-warning': 'true'
+            }
+        });
         console.log(`[loadUserData] Ответ от сервера: ${response.status}`);
         
         if (!response.ok) {
@@ -49,7 +50,6 @@ async function loadUserData() {
             updateUI(data);
         } else {
             console.error(`[loadUserData] Ошибка от сервера: ${result.message}`);
-            // Если пользователя нет, возможно, он не нажал /start в боте
             document.getElementById('status').innerHTML = '<p>Ошибка: Нажмите /start в боте</p>';
         }
     } catch (error) {
@@ -67,13 +67,13 @@ function updateUI(data) {
     } else {
         enablePlanetButtons();
     }
-    renderPlanets(); // Рендерим кнопки планет
+    renderPlanets();
 }
 
 // --- Рендеринг кнопок планет ---
 function renderPlanets() {
     const planetsContainer = document.getElementById('planets');
-    planetsContainer.innerHTML = ''; // Очищаем контейнер
+    planetsContainer.innerHTML = '';
 
     const planets = [
         { key: 'moon', name: 'Луна', duration: '1 мин', reward: '12 GC', risk: '8%', icon: '🌙' },
@@ -109,14 +109,18 @@ async function startFlight(planetKey) {
     tg.MainButton.disable();
 
     try {
+        // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
         const response = await fetch(`${API_URL}/start_flight`, {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true' // <--- ДОБАВИТЬ ЭТУ СТРОКУ
-    },
-    body: JSON.stringify({ ... })
-});
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true' // <--- ВОТ ОНО
+            },
+            body: JSON.stringify({
+                telegram_id: tg_user_id,
+                planet_key: planetKey
+            })
+        });
 
         const result = await response.json();
         console.log(`[startFlight] Ответ от сервера:`, result);
@@ -126,7 +130,7 @@ async function startFlight(planetKey) {
             document.getElementById('status').innerHTML = `<p>Полет на ${planet.name}...</p>`;
             isFlightInProgress = true;
             disablePlanetButtons();
-            startFlightAnimation(planet.duration_min * 60); // Длительность в секундах
+            startFlightAnimation(planet.duration_min * 60);
         } else {
             tg.showAlert(`Ошибка запуска: ${result.message}`);
         }
@@ -159,7 +163,6 @@ function startFlightAnimation(durationSeconds) {
     const rocket = document.getElementById('rocket');
     rocket.classList.add('in-flight');
     
-    // Таймер для обратного отсчета
     let timeLeft = durationSeconds;
     const timerInterval = setInterval(() => {
         const minutes = Math.floor(timeLeft / 60);
@@ -181,9 +184,8 @@ function endFlight() {
     tg.showAlert('Полет завершен! Награда зачислена.');
     
     isFlightInProgress = false;
-    loadUserData(); // Перезагружаем данные, чтобы обновить баланс
+    loadUserData();
 }
-
 
 // --- Запуск приложения при загрузке страницы ---
 window.onload = function() {
