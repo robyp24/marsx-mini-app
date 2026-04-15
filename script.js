@@ -119,7 +119,7 @@ async function startFlight(planetKey) {
             body: JSON.stringify({
                 telegram_id: tg_user_id,
                 planet_key: planetKey
-            })
+            }
         });
 
         const result = await response.json();
