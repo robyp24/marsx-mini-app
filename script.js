@@ -69,7 +69,11 @@ async function loadUserData() {
 
 // --- Функция для обновления интерфейса ---
 function updateUI(data) {
-    document.getElementById('status').innerHTML = `<p>Привет, ${user.first_name}! Баланс: ${data.gc_balance} GC | CI: ${data.ci_score}</p>`;
+    document.getElementById('status').innerHTML = `
+        <p>Привет, ${user.first_name}!</p>
+        <p>Капитал: ${data.gc_balance} GC</p>
+        <p>Пассивный доход: ${data.passive_income_per_minute} GC/мин</p>
+    `;
     isFlightInProgress = (data.state === 'in_flight');
     if (isFlightInProgress) {
         disablePlanetButtons();
@@ -194,6 +198,68 @@ function endFlight() {
     isFlightInProgress = false;
     loadUserData();
 }
+
+// --- Функции для экрана инвестиций ---
+function showInvestmentScreen() {
+    document.querySelector('.container').style.display = 'none';
+    document.getElementById('investment-screen').style.display = 'flex';
+}
+
+function showMainScreen() {
+    document.getElementById('investment-screen').style.display = 'none';
+    document.querySelector('.container').style.display = 'flex';
+}
+
+async function handleInvestment(amount) {
+    const confirm = tg.showConfirm(`Вы уверены, что хотите инвестировать $${amount}?`);
+    if (!confirm) return;
+
+    tg.MainButton.text = 'Обработка...';
+    tg.MainButton.show();
+    tg.MainButton.disable();
+
+    try {
+        const response = await fetch(`${API_URL}/invest`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true'
+            },
+            body: JSON.stringify({
+                telegram_id: tg_user_id,
+                amount_usd: amount
+            })
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            tg.showAlert(result.message);
+            loadUserData(); 
+            showMainScreen();
+        } else {
+            tg.showAlert(`Ошибка: ${result.message}`);
+        }
+    } catch (error) {
+        console.error('[handleInvestment] Error:', error);
+        tg.showAlert('Не удалось связаться с сервером.');
+    } finally {
+        tg.MainButton.hide();
+    }
+}
+
+// --- Обработчики событий ---
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('go-to-invest').addEventListener('click', showInvestmentScreen);
+    document.getElementById('back-to-main-from-invest').addEventListener('click', showMainScreen);
+
+    document.getElementById('investment-screen').addEventListener('click', function(e) {
+        const card = e.target.closest('.investment-card');
+        if (card) {
+            const amount = parseFloat(card.dataset.amount);
+            handleInvestment(amount);
+        }
+    });
+});
 
 // --- Запуск приложения при загрузке страницы ---
 window.onload = function() {
