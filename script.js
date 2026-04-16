@@ -3,7 +3,7 @@ let tg; let user; let tg_user_id; let isFlightInProgress = false; let currentScr
 let flightTimer = null; let currentFlightDuration = 0;
 
 // --- Конфигурация API ---
-const API_URL = 'https://uncrown-untie-playset.ngrok-free.dev';
+const API_URL = 'https://humbly-petunia-customs.ngrok-free.dev';
 
 // --- Управление экранами ---
 function showScreen(screenId) {
