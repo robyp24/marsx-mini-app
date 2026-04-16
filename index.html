@@ -7,347 +7,130 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #ff4d4d;
-            --secondary-color: #FFD700;
-            --bg-color: #000;
-            --card-bg: #1a1a1a;
-            --text-color: #fff;
-            --border-color: #333;
+            --primary-color: #ff4d4d; --secondary-color: #FFD700; --bg-color: #000;
+            --card-bg: #1a1a1a; --text-color: #fff; --border-color: #333;
         }
-        body {
-            font-family: 'Orbitron', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            position: relative;
-            height: 100vh;
-        }
-        .stars {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-        .star {
-            position: absolute;
-            width: 2px;
-            height: 2px;
-            background: white;
-            border-radius: 50%;
-            animation: twinkle 5s infinite;
-        }
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 1; }
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--bg-color);
-            padding: 20px;
-            box-sizing: border-box;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            color: var(--text-color);
-            overflow-y: auto;
-            z-index: 10;
-        }
-        .screen.active {
-            display: flex;
-            animation: fadeIn 0.5s ease-out;
-        }
-        .container {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-between;
-            height: 100vh;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .header {
-            text-align: center;
-            width: 100%;
-        }
-        .header h1 {
-            font-size: 24px;
-            font-weight: 900;
-            color: var(--primary-color);
-            margin: 0;
-        }
-        .status-bar {
-            background-color: rgba(255, 255, 255, 0.1);
-            border: 1px solid var(--primary-color);
-            border-radius: 10px;
-            padding: 10px 20px;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        .nav-buttons {
-            display: flex;
-            justify-content: space-around;
-            width: 100%;
-            max-width: 400px;
-            margin-top: 15px;
-        }
-        .nav-button {
-            background-color: transparent;
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .nav-button:hover {
-            border-color: var(--secondary-color);
-            color: var(--secondary-color);
-        }
-        .game-area {
-            width: 100%;
-            max-width: 350px;
-            height: 350px;
-            position: relative;
-            background: url('https://i.imgur.com/gKpKz1l.gif') no-repeat center center;
-            background-size: contain;
-            margin: 20px 0;
-        }
-        .rocket {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 40px;
-            transition: all 2s ease-in-out;
-        }
-        .rocket.in-flight {
-            bottom: 300px;
-            opacity: 0;
-        }
-        .planets {
-            width: 100%;
-            max-width: 400px;
-        }
-        .planet {
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 15px;
-            margin: 10px 0;
-            cursor: pointer;
-            transition: all 0.3s ease, transform 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .planet:hover {
-            background-color: rgba(255, 77, 77, 0.2);
-            transform: scale(1.05);
-        }
-        .planet:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .planet-info {
-            text-align: left;
-        }
-        .planet-name {
-            font-size: 18px;
-            font-weight: bold;
-        }
-        .planet-stats {
-            font-size: 12px;
-            color: #bbbbbb;
-        }
-        .planet-icon {
-            font-size: 30px;
-        }
-        .investment-card {
-            background: linear-gradient(145deg, var(--card-bg), #2a2a2a);
-            border: 1px solid var(--border-color);
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 15px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            width: 100%;
-            max-width: 400px;
-        }
-        .investment-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(255, 215, 0, 0.2);
-            border-color: var(--secondary-color);
-        }
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .card-title {
-            font-size: 16px;
-            font-weight: bold;
-        }
-        .card-price {
-            font-size: 18px;
-            font-weight: 900;
-            color: var(--secondary-color);
-        }
-        .card-body {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 14px;
-        }
-        .card-gc {
-            color: var(--text-color);
-        }
-        .card-income {
-            color: #00ff00;
-        }
-        .leaderboard-list {
-            width: 100%;
-            max-width: 400px;
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        .leaderboard-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 10px 15px;
-            margin-bottom: 10px;
-            font-size: 14px;
-        }
+        body, html { margin: 0; padding: 0; font-family: 'Orbitron', sans-serif; background-color: var(--bg-color); color: var(--text-color); overflow: hidden; height: 100vh; position: relative; }
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .star { position: absolute; width: 2px; height: 2px; background: white; border-radius: 50%; animation: twinkle 5s infinite; }
+        @keyframes twinkle { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        @keyframes eventPop { 0% { transform: scale(0) rotate(0deg); opacity: 1; } 50% { transform: scale(1.2) rotate(180deg); } 100% { transform: scale(1) rotate(360deg); opacity: 1; } }
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--bg-color); padding: 20px; box-sizing: border-box; display: none; flex-direction: column; align-items: center; justify-content: flex-start; color: var(--text-color); overflow-y: auto; z-index: 10; }
+        .screen.active { display: flex; animation: fadeIn 0.5s ease-out; }
+        .container { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: space-between; height: 100vh; padding: 20px; box-sizing: border-box; }
+        .header { text-align: center; width: 100%; }
+        .header h1 { font-size: 24px; font-weight: 900; color: var(--primary-color); margin: 0; }
+        .status-bar { background-color: rgba(255, 255, 255, 0.1); border: 1px solid var(--primary-color); border-radius: 10px; padding: 10px 20px; margin-top: 10px; font-size: 14px; }
+        .nav-buttons { display: flex; justify-content: space-around; width: 100%; max-width: 400px; margin-top: 15px; }
+        .nav-button { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: all 0.3s ease; }
+        .nav-button:hover { border-color: var(--secondary-color); color: var(--secondary-color); }
+        .planets-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; width: 100%; max-width: 400px; }
+        .planet-card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 15px; padding: 15px; text-align: center; cursor: pointer; transition: all 0.3s ease; }
+        .planet-card:hover { transform: translateY(-5px); border-color: var(--primary-color); }
+        .planet-card.disabled { opacity: 0.5; cursor: not-allowed; }
+        .planet-icon { font-size: 40px; margin-bottom: 10px; }
+        .planet-name { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
+        .planet-stats { font-size: 11px; color: #aaa; }
+        .planet-risk { font-size: 11px; color: var(--primary-color); font-weight: bold; }
+
+        /* --- Экран полета --- */
+        #flight-screen { background: #000; }
+        .flight-area { position: relative; width: 100%; height: 60%; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .flying-rocket { font-size: 60px; position: relative; z-index: 2; animation: pulse 2s infinite; }
+        .event-object { position: absolute; font-size: 40px; animation: eventPop 0.5s ease-out; z-index: 3; }
+        .event-log { width: 100%; height: 35%; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px; overflow-y: auto; font-size: 12px; margin-top: 20px; }
+        .log-entry { margin-bottom: 5px; padding: 5px; border-radius: 5px; }
+        .log-entry.asteroid { background-color: rgba(255, 0, 0, 0.2); }
+        .log-entry.alien { background-color: rgba(0, 255, 255, 0.2); }
+        .log-entry.bonus { background-color: rgba(0, 255, 0, 0.2); }
+        .log-entry.info { background-color: rgba(255, 255, 255, 0.1); }
+
+        /* --- Экран прибытия --- */
+        .arrival-content { text-align: center; }
+        .arrival-planet-icon { font-size: 80px; margin-bottom: 20px; }
+        .arrival-message { font-size: 18px; margin-bottom: 20px; }
+        .arrival-reward { color: var(--secondary-color); font-size: 20px; font-weight: bold; margin-bottom: 30px; }
+
+        /* --- Общие стили для кнопок и карточек (из прошлых версий) --- */
+        .investment-card { background: linear-gradient(145deg, var(--card-bg), #2a2a2a); border: 1px solid var(--border-color); border-radius: 15px; padding: 15px; margin-bottom: 15px; cursor: pointer; transition: all 0.3s ease; width: 100%; max-width: 400px; }
+        .investment-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(255, 215, 0, 0.2); border-color: var(--secondary-color); }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .card-title { font-size: 16px; font-weight: bold; }
+        .card-price { font-size: 18px; font-weight: 900; color: var(--secondary-color); }
+        .card-body { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .card-gc { color: var(--text-color); }
+        .card-income { color: #00ff00; }
+        .leaderboard-list { width: 100%; max-width: 400px; list-style: none; padding: 0; margin: 0; }
+        .leaderboard-item { display: flex; justify-content: space-between; align-items: center; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 15px; margin-bottom: 10px; font-size: 14px; }
         .leaderboard-item.top-1 { border-color: #FFD700; }
-        .leaderboard-item.top-2 { border-color: #C0C0C0; }
-        .leaderboard-item.top-3 { border-color: #CD7F32; }
-        .leaderboard-rank {
-            font-weight: bold;
-            color: var(--secondary-color);
-        }
-        .leaderboard-name {
-            flex-grow: 1;
-            margin-left: 15px;
-        }
-        .leaderboard-score {
-            font-weight: bold;
-        }
-        .referral-section {
-            text-align: center;
-            margin-top: 20px;
-        }
-        .referral-link {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 10px;
-            margin-top: 10px;
-            word-break: break-all;
-            font-family: monospace;
-            font-size: 12px;
-        }
-        .back-button, .action-button {
-            background-color: var(--card-bg);
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
-            padding: 10px 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .action-button {
-            background-color: var(--secondary-color);
-            color: var(--bg-color);
-            font-weight: bold;
-        }
-        .action-button:hover {
-            background-color: #FFC700;
-        }
+        .leaderboard-rank { font-weight: bold; color: var(--secondary-color); }
+        .leaderboard-name { flex-grow: 1; margin-left: 15px; }
+        .leaderboard-score { font-weight: bold; }
+        .referral-section { text-align: center; margin-top: 20px; }
+        .referral-link { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-top: 10px; word-break: break-all; font-family: monospace; font-size: 12px; }
+        .back-button, .action-button { background-color: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 10px; margin-top: 20px; cursor: pointer; transition: all 0.3s ease; }
+        .action-button { background-color: var(--secondary-color); color: var(--bg-color); font-weight: bold; }
+        .action-button:hover { background-color: #FFC700; }
     </style>
 </head>
 <body>
     <div class="stars" id="stars"></div>
 
+    <!-- Главный экран -->
     <div class="container" id="main-screen">
         <div class="header">
             <h1>🚀 MarsX Rocket</h1>
-            <div id="status" class="status-bar">
-                <p>Загрузка данных...</p>
-            </div>
+            <div id="status" class="status-bar"><p>Загрузка данных...</p></div>
             <div class="nav-buttons">
                 <button class="nav-button" id="go-to-invest">💰 Инвестиции</button>
                 <button class="nav-button" id="go-to-leaderboard">🏆 Топ</button>
                 <button class="nav-button" id="go-to-referrals">👥 Рефералы</button>
             </div>
         </div>
-
-        <div class="game-area">
-            <div id="rocket" class="rocket">🚀</div>
+        <div id="planets" class="planets-grid">
+            <!-- Планеты будут вставлены сюда JS -->
         </div>
+    </div>
 
-        <div id="planets" class="planets">
-            <!-- Кнопки планет будут вставлены сюда JS -->
+    <!-- Экран полета -->
+    <div id="flight-screen" class="screen">
+        <div class="header"><h1>В полете</h1></div>
+        <div class="flight-area">
+            <div class="flying-rocket">🚀</div>
+        </div>
+        <div class="event-log" id="event-log">
+            <div class="log-entry info">Полет начат. Пристегните ремни!</div>
+        </div>
+    </div>
+
+    <!-- Экран прибытия -->
+    <div id="arrival-screen" class="screen">
+        <div class="arrival-content">
+            <div class="arrival-planet-icon" id="arrival-planet-icon">🪐</div>
+            <h2 class="arrival-message" id="arrival-message">Вы прибыли на планету!</h2>
+            <div class="arrival-reward" id="arrival-reward">+100 GC</div>
+            <button id="back-to-main-from-arrival" class="action-button">Продолжить</button>
         </div>
     </div>
 
     <!-- Экран инвестиций -->
     <div id="investment-screen" class="screen">
-        <div class="screen-header">
-            <h2>🚀 Инвестиции в MarsX</h2>
-            <p>Увеличьте свой пассивный доход и станьте лидером!</p>
-        </div>
+        <div class="screen-header"><h2>🚀 Инвестиции в MarsX</h2><p>Увеличьте свой пассивный доход!</p></div>
         <div class="investment-options">
-            <div class="investment-card" data-amount="5">
-                <div class="card-header"><span class="card-title">Стартовый пакет</span><span class="card-price">$5</span></div>
-                <div class="card-body"><span class="card-gc">+500 GC</span><span class="card-income">+0.15 GC/мин</span></div>
-            </div>
-            <div class="investment-card" data-amount="10">
-                <div class="card-header"><span class="card-title">Бизнес-класс</span><span class="card-price">$10</span></div>
-                <div class="card-body"><span class="card-gc">+1000 GC</span><span class="card-income">+0.30 GC/мин</span></div>
-            </div>
-            <div class="investment-card" data-amount="25">
-                <div class="card-header"><span class="card-title">ВИП-пакет</span><span class="card-price">$25</span></div>
-                <div class="card-body"><span class="card-gc">+2500 GC</span><span class="card-income">+0.75 GC/мин</span></div>
-            </div>
-            <div class="investment-card" data-amount="50">
-                <div class="card-header"><span class="card-title">Alpha Colonist</span><span class="card-price">$50</span></div>
-                <div class="card-body"><span class="card-gc">+5000 GC</span><span class="card-income">+1.50 GC/мин</span></div>
-            </div>
+            <div class="investment-card" data-amount="5"><div class="card-header"><span class="card-title">Стартовый пакет</span><span class="card-price">$5</span></div><div class="card-body"><span class="card-gc">+500 GC</span><span class="card-income">+0.15 GC/мин</span></div></div>
+            <div class="investment-card" data-amount="10"><div class="card-header"><span class="card-title">Бизнес-класс</span><span class="card-price">$10</span></div><div class="card-body"><span class="card-gc">+1000 GC</span><span class="card-income">+0.30 GC/мин</span></div></div>
+            <div class="investment-card" data-amount="25"><div class="card-header"><span class="card-title">ВИП-пакет</span><span class="card-price">$25</span></div><div class="card-body"><span class="card-gc">+2500 GC</span><span class="card-income">+0.75 GC/мин</span></div></div>
+            <div class="investment-card" data-amount="50"><div class="card-header"><span class="card-title">Alpha Colonist</span><span class="card-price">$50</span></div><div class="card-body"><span class="card-gc">+5000 GC</span><span class="card-income">+1.50 GC/мин</span></div></div>
         </div>
         <button id="back-to-main-from-invest" class="back-button">← Назад</button>
     </div>
 
     <!-- Экран таблицы лидеров -->
     <div id="leaderboard-screen" class="screen">
-        <div class="screen-header">
-            <h2>🏆 Топ Инвесторов MarsX</h2>
-        </div>
+        <div class="screen-header"><h2>🏆 Топ Инвесторов MarsX</h2></div>
         <h3>Топ по капиталу (GC)</h3>
         <ul id="leaderboard-gc" class="leaderboard-list"></ul>
         <h3>Топ по пассивному доходу (GC/мин)</h3>
@@ -357,18 +140,13 @@
 
     <!-- Экран рефералов -->
     <div id="referrals-screen" class="screen">
-        <div class="screen-header">
-            <h2>👥 Приведи партнера</h2>
-            <p>Получайте бонусы за каждого приглашенного!</p>
-        </div>
+        <div class="screen-header"><h2>👥 Приведи партнера</h2><p>Получайте бонусы за каждого приглашенного!</p></div>
         <div class="referral-section">
             <p>Ваша реферальная ссылка:</p>
             <div id="referral-link" class="referral-link">Загрузка...</div>
             <button id="copy-referral" class="action-button">📋 Копировать</button>
         </div>
-        <div class="referral-section">
-            <p>Приглашено партнеров: <strong id="referrals-count">0</strong></p>
-        </div>
+        <div class="referral-section"><p>Приглашено партнеров: <strong id="referrals-count">0</strong></p></div>
         <button id="back-to-main-from-referrals" class="back-button">← Назад</button>
     </div>
 
