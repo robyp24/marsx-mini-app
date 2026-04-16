@@ -40,7 +40,7 @@
         .container {
             position: relative;
             z-index: 1;
-            display: flex; /* Изначально скрыт, покажем через JS */
+            display: flex; /* Изменено с none на flex */
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
@@ -65,6 +65,20 @@
             padding: 10px 20px;
             margin-top: 10px;
             font-size: 14px;
+        }
+        .invest-button {
+            background-color: #FFD700;
+            color: #000;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+        .invest-button:hover {
+            background-color: #FFC700;
         }
 
         .game-area {
@@ -127,27 +141,85 @@
             font-size: 30px;
         }
         
-        .notification {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.9);
-            color: #fff;
-            padding: 20px 30px;
-            border-radius: 10px;
-            border: 2px solid #ff4d4d;
-            text-align: center;
-            z-index: 1000;
+        /* --- Стили для инвестиций --- */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            padding: 20px;
+            box-sizing: border-box;
             display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            color: #fff;
+            overflow-y: auto;
         }
-        .notification.show {
-            display: block;
-            animation: fadeIn 0.5s;
+        .screen-header {
+            text-align: center;
+            margin-bottom: 20px;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        .screen-header h2 {
+            font-size: 22px;
+            font-weight: 900;
+            color: #FFD700; /* Золотой цвет */
+        }
+        .investment-options {
+            width: 100%;
+            max-width: 400px;
+        }
+        .investment-card {
+            background: linear-gradient(145deg, #1a1a1a, #2a2a2a);
+            border: 1px solid #444;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .investment-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(255, 215, 0, 0.2);
+            border-color: #FFD700;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .card-price {
+            font-size: 18px;
+            font-weight: 900;
+            color: #FFD700;
+        }
+        .card-body {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+        .card-gc {
+            color: #fff;
+        }
+        .card-income {
+            color: #00ff00; /* Зеленый цвет для дохода */
+        }
+        .back-button {
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -161,6 +233,7 @@
             <div id="status" class="status-bar">
                 <p>Загрузка данных...</p>
             </div>
+            <button id="go-to-invest" class="invest-button">💰 Инвестировать</button>
         </div>
 
         <div class="game-area">
@@ -172,8 +245,55 @@
         </div>
     </div>
 
-    <div id="notification" class="notification">
-        <p id="notification-text"></p>
+    <!-- Новый экран для инвестиций -->
+    <div id="investment-screen" class="screen">
+        <div class="screen-header">
+            <h2>🚀 Инвестиции в MarsX</h2>
+            <p>Увеличьте свой пассивный доход и станьте лидером!</p>
+        </div>
+        <div class="investment-options">
+            <div class="investment-card" data-amount="5">
+                <div class="card-header">
+                    <span class="card-title">Стартовый пакет</span>
+                    <span class="card-price">$5</span>
+                </div>
+                <div class="card-body">
+                    <span class="card-gc">+500 GC</span>
+                    <span class="card-income">+0.15 GC/мин</span>
+                </div>
+            </div>
+            <div class="investment-card" data-amount="10">
+                <div class="card-header">
+                    <span class="card-title">Бизнес-класс</span>
+                    <span class="card-price">$10</span>
+                </div>
+                <div class="card-body">
+                    <span class="card-gc">+1000 GC</span>
+                    <span class="card-income">+0.30 GC/мин</span>
+                </div>
+            </div>
+            <div class="investment-card" data-amount="25">
+                <div class="card-header">
+                    <span class="card-title">ВИП-пакет</span>
+                    <span class="card-price">$25</span>
+                </div>
+                <div class="card-body">
+                    <span class="card-gc">+2500 GC</span>
+                    <span class="card-income">+0.75 GC/мин</span>
+                </div>
+            </div>
+            <div class="investment-card" data-amount="50">
+                <div class="card-header">
+                    <span class="card-title">Alpha Colonist</span>
+                    <span class="card-price">$50</span>
+                </div>
+                <div class="card-body">
+                    <span class="card-gc">+5000 GC</span>
+                    <span class="card-income">+1.50 GC/мин</span>
+                </div>
+            </div>
+        </div>
+        <button id="back-to-main-from-invest" class="back-button">← Назад</button>
     </div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
