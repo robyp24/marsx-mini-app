@@ -56,7 +56,13 @@ window.onload = () => {
   initTelegram();
   renderPlanets();
   setInterval(passiveTick, 1000);
+  setInterval(saveFuel, 10000);
 };
+
+async function saveFuel(){
+  if(!G.tgId || G.fuel <= 0) return;
+  await apiPost("/save_fuel", { fuel: Math.floor(G.fuel) });
+}
 
 function initTelegram(){
   if(!window.Telegram?.WebApp){
@@ -248,6 +254,8 @@ async function launchFlight(planet){
   if(G.fuel < planet.fuelCost){
     alert(`Недостаточно топлива! Нужно ${planet.fuelCost} F`); return;
   }
+
+  await saveFuel();
 
   const res = await apiPost('/start_flight', { planet_key: planet.key });
   if(res && res.status !== 'success'){
