@@ -269,6 +269,8 @@ async function claimDaily(){
 // ══════════════════════════════════════════
 function showAutopilotResult(r){
   G.inFlight=false;
+  updateTapPlanet('earth');
+  updateTapPlanet('earth');
   if(r.success){ G.gc+=r.reward_gc; G.ci+=r.reward_ci; }
   showScreen('arrival-screen');
   document.getElementById('arrival-emoji').textContent=PLANETS.find(p=>p.key===r.planet_key)?.emoji||'🪐';
@@ -283,71 +285,288 @@ function showAutopilotResult(r){
 }
 
 // ══════════════════════════════════════════
-//  TAP CANVAS
+//  ЗАМЕНА: вставь вместо initTapCanvas()
+//  и animateTap() в script.js
+//  Всё остальное в script.js не трогать!
 // ══════════════════════════════════════════
-let tapCtx, tapFrame=0;
-const TAP_P=[];
-function initTapCanvas(){
-  const c=document.getElementById('tap-canvas');
-  tapCtx=c.getContext('2d');
-  c.addEventListener('click',onTap);
-  c.addEventListener('touchstart',e=>{e.preventDefault();onTap(e.touches[0]);},{passive:false});
+
+// Конфиг визуала для каждой планеты
+const PLANET_VISUALS = {
+  earth:   { bg:'#07091a', glow:'#4f8ef7', ground:'#1a2540', sky:'rgba(79,142,247,.15)',  label:'Земля — база'         },
+  moon:    { bg:'#0a0a12', glow:'#aaaacc', ground:'#1a1a28', sky:'rgba(180,180,220,.1)',  label:'Луна'                 },
+  mars:    { bg:'#120500', glow:'#e05020', ground:'#3a1008', sky:'rgba(200,70,20,.18)',   label:'Марс'                 },
+  jupiter: { bg:'#0a0500', glow:'#e8a040', ground:'#2a1800', sky:'rgba(220,140,50,.15)',  label:'Юпитер'               },
+  saturn:  { bg:'#0a0800', glow:'#d4a050', ground:'#281a00', sky:'rgba(200,160,80,.15)',  label:'Сатурн'               },
+  neptune: { bg:'#000a18', glow:'#2a60e0', ground:'#000f28', sky:'rgba(40,100,220,.2)',   label:'Нептун'               },
+  alpha:   { bg:'#08001a', glow:'#9060ff', ground:'#150030', sky:'rgba(140,80,255,.2)',   label:'Alpha Centauri'       },
+};
+
+let tapCtx, tapFrame = 0;
+let tapHeat = 0;          // 0–100, нагрев двигателей
+let tapCurrentPlanet = 'earth';
+const TAP_P = [];
+const SMOKE_P = [];
+let rocketStars = null;
+
+// Вызывается из showMain() и при смене планеты
+function updateTapPlanet(planetKey) {
+  tapCurrentPlanet = planetKey || 'earth';
+}
+
+function initTapCanvas() {
+  const c = document.getElementById('tap-canvas');
+  tapCtx = c.getContext('2d');
+
+  c.addEventListener('click', onTap);
+  c.addEventListener('touchstart', e => {
+    e.preventDefault();
+    onTap(e.touches[0]);
+  }, { passive: false });
+
   animateTap();
 }
-function animateTap(){
-  const c=tapCtx.canvas,W=c.width,H=c.height,cx=W/2,cy=H/2;
+
+function animateTap() {
+  const c = tapCtx.canvas;
+  const W = c.width, H = c.height;
+  const cx = W / 2;
   tapFrame++;
-  tapCtx.clearRect(0,0,W,H);
-  // Outer glow
-  const g=tapCtx.createRadialGradient(cx,cy,80,cx,cy,130);
-  g.addColorStop(0,'rgba(79,142,247,.15)');g.addColorStop(1,'rgba(0,0,0,0)');
-  tapCtx.beginPath();tapCtx.arc(cx,cy,130,0,Math.PI*2);tapCtx.fillStyle=g;tapCtx.fill();
-  // Orbits
-  for(let i=0;i<3;i++){
-    const r=88+i*13,sp=(i%2===0?.003:-.002)*(i+1);
-    tapCtx.beginPath();tapCtx.ellipse(cx,cy,r,r*.28,tapFrame*sp,0,Math.PI*2);
-    tapCtx.strokeStyle=`rgba(79,142,247,${.07+i*.04})`;tapCtx.lineWidth=1;tapCtx.stroke();
-    const a=tapFrame*sp*2+i*2.1,sx=cx+r*Math.cos(a),sy=cy+r*.28*Math.sin(a);
-    tapCtx.beginPath();tapCtx.arc(sx,sy,2.5,0,Math.PI*2);
-    tapCtx.fillStyle='rgba(79,142,247,.5)';tapCtx.fill();
+
+  // Остывание
+  if (tapHeat > 0) tapHeat = Math.max(0, tapHeat - 0.4);
+
+  const vis = PLANET_VISUALS[tapCurrentPlanet] || PLANET_VISUALS.earth;
+
+  // Фон
+  tapCtx.fillStyle = vis.bg;
+  tapCtx.fillRect(0, 0, W, H);
+
+  // Звёзды (генерируем один раз)
+  if (!rocketStars) {
+    rocketStars = [];
+    for (let i = 0; i < 70; i++) {
+      rocketStars.push({
+        x: Math.random() * W, y: Math.random() * H * .65,
+        r: .4 + Math.random() * 1.3,
+        o: .1 + Math.random() * .55,
+      });
+    }
   }
-  // Planet
-  const pg=tapCtx.createRadialGradient(cx-18,cy-18,8,cx,cy,70);
-  pg.addColorStop(0,'#2a4a9e');pg.addColorStop(.4,'#1a2f6e');pg.addColorStop(.8,'#0f1d4a');pg.addColorStop(1,'#060c20');
-  tapCtx.beginPath();tapCtx.arc(cx,cy,70,0,Math.PI*2);tapCtx.fillStyle=pg;tapCtx.fill();
-  // Continents
-  tapCtx.save();tapCtx.beginPath();tapCtx.arc(cx,cy,70,0,Math.PI*2);tapCtx.clip();
-  const sh=(tapFrame*.25)%200;
-  [[cx-20+sh*.08,cy-10,28,16,-.3,'rgba(46,90,180,.22)'],[cx+15+sh*.04,cy+18,19,13,.4,'rgba(46,160,100,.16)'],[cx-5,cy+4,11,7,1,'rgba(200,160,80,.10)']].forEach(([x,y,rx,ry,rot,col])=>{
-    tapCtx.fillStyle=col;tapCtx.beginPath();tapCtx.ellipse(x,y,rx,ry,rot,0,Math.PI*2);tapCtx.fill();
-  });
-  tapCtx.restore();
-  tapCtx.beginPath();tapCtx.arc(cx,cy,70,0,Math.PI*2);tapCtx.strokeStyle='rgba(79,142,247,.3)';tapCtx.lineWidth=1.5;tapCtx.stroke();
-  // Atmosphere
-  const ag=tapCtx.createRadialGradient(cx,cy,68,cx,cy,80);
-  ag.addColorStop(0,'rgba(79,142,247,.2)');ag.addColorStop(1,'rgba(0,0,0,0)');
-  tapCtx.beginPath();tapCtx.arc(cx,cy,80,0,Math.PI*2);tapCtx.fillStyle=ag;tapCtx.fill();
-  // City lights
-  tapCtx.save();tapCtx.beginPath();tapCtx.arc(cx,cy,70,0,Math.PI*2);tapCtx.clip();
-  for(let i=0;i<8;i++){
-    const bx=cx+30+Math.cos(i*1.3+tapFrame*.01)*20,by=cy+Math.sin(i*1.7+tapFrame*.008)*25;
-    tapCtx.beginPath();tapCtx.arc(bx,by,1.2,0,Math.PI*2);
-    tapCtx.fillStyle=`rgba(255,220,80,${.25+Math.sin(tapFrame*.1+i)*.15})`;tapCtx.fill();
+  for (const s of rocketStars) {
+    tapCtx.beginPath();
+    tapCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    tapCtx.fillStyle = `rgba(255,255,255,${s.o + Math.sin(tapFrame * .04 + s.x) * .06})`;
+    tapCtx.fill();
   }
-  tapCtx.restore();
-  // Particles
-  for(let i=TAP_P.length-1;i>=0;i--){
-    const p=TAP_P[i];p.x+=p.vx;p.y+=p.vy;p.vy-=.15;p.life-=.025;
-    if(p.life<=0){TAP_P.splice(i,1);continue;}
-    tapCtx.beginPath();tapCtx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2);
-    tapCtx.fillStyle=`rgba(${p.c},${p.life})`;tapCtx.fill();
+
+  // Световое зарево от планеты (цвет зависит от планеты)
+  const skyGrd = tapCtx.createRadialGradient(cx, H, 0, cx, H, 160);
+  skyGrd.addColorStop(0, vis.sky);
+  skyGrd.addColorStop(1, 'rgba(0,0,0,0)');
+  tapCtx.fillStyle = skyGrd;
+  tapCtx.fillRect(0, 0, W, H);
+
+  // Земля / поверхность планеты
+  tapCtx.fillStyle = vis.ground;
+  tapCtx.beginPath();
+  tapCtx.ellipse(cx, H + 8, W * .9, 28, 0, Math.PI, Math.PI * 2);
+  tapCtx.fill();
+
+  // Стартовая платформа
+  _drawPad(tapCtx, cx, H, vis.glow);
+
+  // Дым от двигателей
+  if (tapHeat > 15 && tapFrame % 2 === 0) {
+    for (let i = 0; i < 2; i++) {
+      const sx = cx + (-18 + i * 18) + (Math.random() - .5) * 8;
+      SMOKE_P.push({
+        x: sx, y: H - 68,
+        vx: (Math.random() - .5) * 1.2,
+        vy: -1.2 - Math.random() * .8,
+        r: 3 + Math.random() * 5,
+        life: .5 + Math.random() * .3,
+      });
+    }
   }
+  for (let i = SMOKE_P.length - 1; i >= 0; i--) {
+    const s = SMOKE_P[i];
+    s.x += s.vx; s.y += s.vy; s.r += .25; s.life -= .018;
+    if (s.life <= 0) { SMOKE_P.splice(i, 1); continue; }
+    tapCtx.beginPath(); tapCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    tapCtx.fillStyle = `rgba(180,200,230,${s.life * .5 * (tapHeat / 100)})`;
+    tapCtx.fill();
+  }
+
+  // Пламя двигателей
+  if (tapHeat > 5) {
+    const flameH = 16 + tapHeat * .7 + Math.sin(tapFrame * .35) * 3;
+    for (let e = 0; e < 3; e++) {
+      const ex = cx - 14 + e * 14, ey = H - 68;
+      const fg = tapCtx.createLinearGradient(ex, ey, ex, ey + flameH);
+      fg.addColorStop(0, `rgba(140,180,255,.95)`);
+      fg.addColorStop(.4, `rgba(80,100,252,.7)`);
+      fg.addColorStop(1, 'rgba(0,0,0,0)');
+      tapCtx.beginPath();
+      tapCtx.moveTo(ex - 5, ey); tapCtx.lineTo(ex, ey + flameH); tapCtx.lineTo(ex + 5, ey);
+      tapCtx.fillStyle = fg; tapCtx.fill();
+    }
+    // Glow под ракетой
+    const eg = tapCtx.createRadialGradient(cx, H - 66, 0, cx, H - 66, tapHeat * .55);
+    eg.addColorStop(0, `rgba(79,142,247,${tapHeat / 180})`);
+    eg.addColorStop(1, 'rgba(0,0,0,0)');
+    tapCtx.beginPath(); tapCtx.arc(cx, H - 66, tapHeat * .55, 0, Math.PI * 2);
+    tapCtx.fillStyle = eg; tapCtx.fill();
+  }
+
+  // Ракета
+  _drawRocket(tapCtx, cx, H - 70, tapHeat, vis.glow);
+
+  // Частицы от тапа
+  for (let i = TAP_P.length - 1; i >= 0; i--) {
+    const p = TAP_P[i];
+    p.x += p.vx; p.y += p.vy; p.vy += .12; p.life -= .028;
+    if (p.life <= 0) { TAP_P.splice(i, 1); continue; }
+    tapCtx.beginPath(); tapCtx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
+    tapCtx.fillStyle = `rgba(${p.c},${p.life})`; tapCtx.fill();
+  }
+
+  // Шкала топлива / прогрева внутри канваса
+  _drawHeatBar(tapCtx, W, H, tapHeat, vis.glow);
+
   requestAnimationFrame(animateTap);
 }
 
-// ══════════════════════════════════════════
-//  MAIN UI
-// ══════════════════════════════════════════
+function _drawPad(ctx, cx, H, glowColor) {
+  // База платформы
+  ctx.fillStyle = '#1a2540';
+  ctx.beginPath(); ctx.roundRect(cx - 60, H - 28, 120, 16, 3); ctx.fill();
+  ctx.fillStyle = '#263060';
+  ctx.fillRect(cx - 68, H - 32, 136, 6);
+
+  // Ноги
+  ['#1e2e4a', '#1e2e4a', '#1e2e4a'].forEach((col, i) => {
+    const lx = cx - 40 + i * 40;
+    ctx.fillStyle = col;
+    ctx.fillRect(lx - 3, H - 50, 6, 22);
+    ctx.fillStyle = '#141e30';
+    ctx.fillRect(lx - 7, H - 30, 14, 5);
+  });
+
+  // Руки поддержки
+  ctx.strokeStyle = '#263060'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(cx - 55, H - 28); ctx.lineTo(cx - 18, H - 90); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx + 55, H - 28); ctx.lineTo(cx + 18, H - 90); ctx.stroke();
+}
+
+function _drawRocket(ctx, cx, ry, heat, glowColor) {
+  ctx.save(); ctx.translate(cx, ry);
+
+  // Тень корпуса
+  ctx.beginPath();
+  ctx.moveTo(2, 8); ctx.lineTo(14, 42); ctx.lineTo(14, 92); ctx.lineTo(2, 92);
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fill();
+
+  // Основной корпус
+  ctx.beginPath();
+  ctx.moveTo(0, -72); ctx.lineTo(14, 42); ctx.lineTo(14, 92);
+  ctx.lineTo(-14, 92); ctx.lineTo(-14, 42); ctx.closePath();
+  const bg = ctx.createLinearGradient(-14, 0, 14, 0);
+  bg.addColorStop(0, '#8aaac8'); bg.addColorStop(.22, '#c8ddf0');
+  bg.addColorStop(.5, '#eef8ff'); bg.addColorStop(.78, '#b8d0e8'); bg.addColorStop(1, '#6888a0');
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.strokeStyle = '#7090ae'; ctx.lineWidth = .8; ctx.stroke();
+
+  // Нос
+  ctx.beginPath();
+  ctx.moveTo(0, -72); ctx.lineTo(14, 42); ctx.lineTo(-14, 42); ctx.closePath();
+  const ng = ctx.createLinearGradient(-14, 0, 14, 0);
+  ng.addColorStop(0, '#a0c0d8'); ng.addColorStop(.45, '#e0f2ff'); ng.addColorStop(1, '#88a8c0');
+  ctx.fillStyle = ng; ctx.fill(); ctx.strokeStyle = '#7090ae'; ctx.lineWidth = .8; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, -72, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#c0d8f0'; ctx.fill();
+
+  // Иллюминатор
+  const wg = ctx.createRadialGradient(-3, -18, 1, 0, -16, 11);
+  wg.addColorStop(0, 'rgba(200,240,255,.95)'); wg.addColorStop(.4, 'rgba(100,180,255,.8)'); wg.addColorStop(1, 'rgba(40,100,180,.6)');
+  ctx.beginPath(); ctx.ellipse(0, -16, 9, 12, 0, 0, Math.PI * 2);
+  ctx.fillStyle = wg; ctx.fill(); ctx.strokeStyle = 'rgba(180,220,255,.6)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(-3, -21, 3.5, 4.5, -.4, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.fill();
+
+  // Полосы
+  ctx.strokeStyle = 'rgba(79,142,247,.35)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-13, 18); ctx.lineTo(13, 18); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-13, 50); ctx.lineTo(13, 50); ctx.stroke();
+
+  // Логотип MarsX
+  ctx.fillStyle = 'rgba(79,142,247,.22)'; ctx.fillRect(-13, 26, 26, 18);
+  ctx.fillStyle = 'rgba(140,190,255,.85)'; ctx.font = 'bold 7px -apple-system'; ctx.textAlign = 'center';
+  ctx.fillText('MarsX', 0, 38);
+
+  // Левый fin
+  ctx.beginPath();
+  ctx.moveTo(-14, 52); ctx.lineTo(-32, 82); ctx.lineTo(-32, 92); ctx.lineTo(-14, 88); ctx.closePath();
+  const lf = ctx.createLinearGradient(-32, 0, -14, 0);
+  lf.addColorStop(0, '#4a6080'); lf.addColorStop(1, '#8aaac8');
+  ctx.fillStyle = lf; ctx.fill(); ctx.strokeStyle = '#4a6080'; ctx.lineWidth = .7; ctx.stroke();
+
+  // Правый fin
+  ctx.beginPath();
+  ctx.moveTo(14, 52); ctx.lineTo(32, 82); ctx.lineTo(32, 92); ctx.lineTo(14, 88); ctx.closePath();
+  const rf = ctx.createLinearGradient(14, 0, 32, 0);
+  rf.addColorStop(0, '#8aaac8'); rf.addColorStop(1, '#4a6080');
+  ctx.fillStyle = rf; ctx.fill(); ctx.strokeStyle = '#4a6080'; ctx.lineWidth = .7; ctx.stroke();
+
+  // Сопла двигателей
+  for (let e = 0; e < 3; e++) {
+    const ex = -13 + e * 13;
+    ctx.beginPath();
+    ctx.moveTo(ex - 5, 88); ctx.lineTo(ex - 7, 98); ctx.lineTo(ex + 7, 98); ctx.lineTo(ex + 5, 88);
+    ctx.closePath(); ctx.fillStyle = '#3a4a60'; ctx.fill(); ctx.strokeStyle = '#2a3a50'; ctx.lineWidth = .7; ctx.stroke();
+
+    // Свечение сопла при нагреве
+    if (heat > 8) {
+      const nozzleGlow = ctx.createRadialGradient(ex, 93, 0, ex, 93, 8);
+      nozzleGlow.addColorStop(0, `rgba(100,150,255,${heat / 160})`);
+      nozzleGlow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.beginPath(); ctx.arc(ex, 95, 8, 0, Math.PI * 2);
+      ctx.fillStyle = nozzleGlow; ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
+function _drawHeatBar(ctx, W, H, heat, glowColor) {
+  const bw = W - 32, bx = 16, by = H - 14, bh = 5;
+
+  // Track
+  ctx.fillStyle = 'rgba(255,255,255,.06)';
+  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 3); ctx.fill();
+
+  if (heat > 0) {
+    // Fill gradient
+    const fg = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+    fg.addColorStop(0, '#4f8ef7'); fg.addColorStop(.5, '#7c5cfc'); fg.addColorStop(1, '#f5c518');
+    ctx.fillStyle = fg;
+    ctx.beginPath(); ctx.roundRect(bx, by, bw * (heat / 100), bh, 3); ctx.fill();
+  }
+
+  // Label
+  const fuelText = heat > 85
+    ? '🔥 Готово к старту!'
+    : heat > 40
+      ? `⚡ Прогрев ${Math.floor(heat)}%`
+      : `Тапай — добывай топливо`;
+  ctx.fillStyle = heat > 85 ? '#f5c518' : heat > 40 ? '#7c5cfc' : 'rgba(107,125,179,.8)';
+  ctx.font = `${heat > 85 ? 'bold' : 'normal'} 10px -apple-system`;
+  ctx.textAlign = 'center';
+  ctx.fillText(fuelText, W / 2, by - 5);
+}
+
+// ── Тап-обработчик — ЗАМЕНИ существующий onTap в script.js ──
+// Найди function onTap(e){ и замени весь блок на этот:
+
 function updateMainUI(){
   document.getElementById('stat-fuel').innerHTML=`${Math.floor(G.fuel)} <span>F</span>`;
   document.getElementById('stat-gc').innerHTML=`${Math.floor(G.gc)} <span>GC</span>`;
@@ -383,22 +602,7 @@ function minerTick(){
 // ══════════════════════════════════════════
 //  TAP
 // ══════════════════════════════════════════
-function onTap(e){
-  doTap(e);
-  if(e){
-    const c=document.getElementById('tap-canvas'),rect=c.getBoundingClientRect(),scale=c.width/rect.width;
-    const lx=(e.clientX-rect.left)*scale,ly=(e.clientY-rect.top)*scale;
-    const colors=['79,142,247','124,92,252','245,197,24','46,204,113'];
-    for(let i=0;i<12;i++){
-      const a=Math.random()*Math.PI*2,sp=2+Math.random()*4;
-      TAP_P.push({x:lx,y:ly,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,r:2+Math.random()*3,life:1,c:colors[Math.floor(Math.random()*4)]});
-    }
-  }
-  // Онбординг шаг 1
-  if(!G.onboardingDone&&G.onboardingStep===1){
-    G.onboardingStep=2; showOnboardingStep(2);
-  }
-}
+
 function doTap(e){
   const now=Date.now();
   const thresh=G.inventory.combo_boost?3:5;
@@ -470,6 +674,7 @@ async function launchFlight(planet){
   const res=await apiPost('/start_flight',{planet_key:planet.key,current_fuel:Math.floor(G.fuel)});
   if(res?.status!=='success'){showToast(res?.message||'Ошибка запуска');return;}
   G.fuel-=planet.fuelCost;G.inFlight=true;G.currentPlanet=planet;G.bonusObjCount=0;
+  updateTapPlanet(planet.key);
   // Если автопилот — показываем инфо и возвращаемся на главный
   if(G.inventory.autopilot){
     showToast(`🛸 Автопилот активирован! Вернись через ${planet.duration/60} мин.`);
@@ -575,6 +780,7 @@ async function finalizeFlight(planet){
   const riskMod=G.inventory.engine_2?-.15:G.inventory.engine_1?-.07:0;
   const success=Math.random()>(planet.risk+riskMod);
   G.inFlight=false;
+  updateTapPlanet('earth');
   if(success){G.gc+=planet.reward;G.ci+=planet.ci;}
   showScreen('arrival-screen');
   document.getElementById('arrival-emoji').textContent=planet.emoji;
