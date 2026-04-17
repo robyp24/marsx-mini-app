@@ -298,11 +298,14 @@ async function claimDaily(){
 // ══════════════════════════════════════════
 function showAutopilotResult(r){
   G.inFlight=false;
-  updateTapPlanet('earth');
-  updateTapPlanet('earth');
+  // Показываем планету назначения, через 4 сек возвращаем на Землю
+  updateTapPlanet(r.planet_key || 'earth');
+  setTimeout(()=>updateTapPlanet('earth'), 4000);
   if(r.success){ G.gc+=r.reward_gc; G.ci+=r.reward_ci; }
   showScreen('arrival-screen');
-  document.getElementById('arrival-emoji').textContent=PLANETS.find(p=>p.key===r.planet_key)?.emoji||'🪐';
+  const arrPlanet = PLANETS.find(p=>p.key===r.planet_key);
+  const arrEmoji  = arrPlanet ? arrPlanet.emoji : '🪐';
+  document.getElementById('arrival-emoji').textContent = arrEmoji;
   document.getElementById('arrival-title').textContent=r.success?'Автопилот доставил груз!':'Крушение!';
   document.getElementById('arrival-subtitle').textContent=r.success?`${r.planet_name} — добыча завершена`:`Корабль потерян у ${r.planet_name}`;
   document.getElementById('rewards-box').innerHTML=r.success?`
@@ -344,274 +347,149 @@ function updateTapPlanet(planetKey) {
 
 function initTapCanvas() {
   const c = document.getElementById('tap-canvas');
-  if(!c){ console.error('[initTapCanvas] canvas not found!'); return; }
-
-  // Подгоняем реальный размер canvas под CSS-размер (retina + мобильный)
-  function resizeCanvas(){
-    const rect = c.getBoundingClientRect();
-    const dpr  = window.devicePixelRatio || 1;
-    const size = Math.min(rect.width || 260, 260);
-    c.width  = size * dpr;
-    c.height = size * dpr;
-    c.style.width  = size + 'px';
-    c.style.height = size + 'px';
-    if(tapCtx) tapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    rocketStars = null; // сбрасываем звёзды при ресайзе
-  }
-
+  if(!c){ console.error('tap-canvas not found'); return; }
   tapCtx = c.getContext('2d');
-  resizeCanvas();
-  window.addEventListener('resize', resizeCanvas);
-
-  c.addEventListener('click', e => { if(typeof onTap === 'function') onTap(e); });
-  c.addEventListener('touchstart', e => {
-    e.preventDefault();
-    if(typeof onTap === 'function') onTap(e.touches[0]);
-  }, { passive: false });
-
+  function resize(){
+    const parent = c.parentElement;
+    const s = Math.min(Math.max(parent ? parent.offsetWidth : 260, 200), 280);
+    c.width=s; c.height=s; c.style.width=s+'px'; c.style.height=s+'px';
+    rocketStars=null;
+  }
+  resize(); setTimeout(resize,150); setTimeout(resize,600);
+  window.addEventListener('resize', resize);
+  c.addEventListener('click', e => onTap(e));
+  c.addEventListener('touchstart', e=>{ e.preventDefault(); onTap(e.touches[0]); },{passive:false});
   animateTap();
 }
 
 function animateTap() {
-  if(!tapCtx){ requestAnimationFrame(animateTap); return; }
-  const c = tapCtx.canvas;
-  const W = c.width, H = c.height;
-  if(!W || !H){ requestAnimationFrame(animateTap); return; }
-  const cx = W / 2;
+  if(!tapCtx){requestAnimationFrame(animateTap);return;}
+  const c=tapCtx.canvas, W=c.width, H=c.height;
+  if(!W||H<10){requestAnimationFrame(animateTap);return;}
+  const cx=W/2;
   tapFrame++;
-
-  // Остывание
-  if (tapHeat > 0) tapHeat = Math.max(0, tapHeat - 0.4);
-
-  const vis = PLANET_VISUALS[tapCurrentPlanet] || PLANET_VISUALS.earth;
+  if(tapHeat>0) tapHeat=Math.max(0,tapHeat-.4);
+  const vis=PLANET_VISUALS[tapCurrentPlanet]||PLANET_VISUALS.earth;
 
   // Фон
-  tapCtx.fillStyle = vis.bg;
-  tapCtx.fillRect(0, 0, W, H);
+  tapCtx.fillStyle=vis.bg; tapCtx.fillRect(0,0,W,H);
 
-  // Звёзды (генерируем один раз)
-  if (!rocketStars) {
-    rocketStars = [];
-    for (let i = 0; i < 70; i++) {
-      rocketStars.push({
-        x: Math.random() * W, y: Math.random() * H * .65,
-        r: .4 + Math.random() * 1.3,
-        o: .1 + Math.random() * .55,
-      });
+  // Звёзды
+  if(!rocketStars){
+    rocketStars=[];
+    for(let i=0;i<70;i++) rocketStars.push({x:Math.random()*W,y:Math.random()*H*.6,r:.5+Math.random()*1.5,o:.15+Math.random()*.55});
+  }
+  for(const s of rocketStars){
+    tapCtx.beginPath();tapCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    tapCtx.fillStyle=`rgba(255,255,255,${s.o+Math.sin(tapFrame*.04+s.x)*.06})`;tapCtx.fill();
+  }
+
+  // Зарево планеты
+  const skyG=tapCtx.createRadialGradient(cx,H,0,cx,H,H*.7);
+  skyG.addColorStop(0,vis.sky);skyG.addColorStop(1,'rgba(0,0,0,0)');
+  tapCtx.fillStyle=skyG;tapCtx.fillRect(0,0,W,H);
+
+  // Поверхность
+  tapCtx.fillStyle=vis.ground;
+  tapCtx.beginPath();tapCtx.ellipse(cx,H+10,W*.9,28,0,Math.PI,Math.PI*2);tapCtx.fill();
+
+  const padY=H-Math.floor(H*.15);
+  const rocketY=H-Math.floor(H*.27);
+
+  // Платформа
+  tapCtx.fillStyle='#1a2540';tapCtx.beginPath();tapCtx.roundRect(cx-55,padY,110,13,3);tapCtx.fill();
+  tapCtx.fillStyle='#263060';tapCtx.fillRect(cx-62,padY-4,124,6);
+  for(let i=0;i<3;i++){
+    const lx=cx-36+i*36;
+    tapCtx.fillStyle='#1e2e4a';tapCtx.fillRect(lx-3,padY-30,6,30);
+    tapCtx.fillStyle='#141e30';tapCtx.fillRect(lx-7,padY-4,14,5);
+  }
+  tapCtx.strokeStyle='#263060';tapCtx.lineWidth=3;
+  tapCtx.beginPath();tapCtx.moveTo(cx-52,padY);tapCtx.lineTo(cx-18,rocketY);tapCtx.stroke();
+  tapCtx.beginPath();tapCtx.moveTo(cx+52,padY);tapCtx.lineTo(cx+18,rocketY);tapCtx.stroke();
+
+  // Дым
+  if(tapHeat>15&&tapFrame%2===0){
+    for(let i=0;i<2;i++) SMOKE_P.push({x:cx+(-14+i*14)+(Math.random()-.5)*6,y:rocketY,vx:(Math.random()-.5)*1.2,vy:-1.2-Math.random()*.8,r:3+Math.random()*5,life:.5+Math.random()*.3});
+  }
+  for(let i=SMOKE_P.length-1;i>=0;i--){
+    const s=SMOKE_P[i];s.x+=s.vx;s.y+=s.vy;s.r+=.25;s.life-=.018;
+    if(s.life<=0){SMOKE_P.splice(i,1);continue;}
+    tapCtx.beginPath();tapCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    tapCtx.fillStyle=`rgba(180,200,230,${s.life*.5*(tapHeat/100)})`;tapCtx.fill();
+  }
+
+  // Пламя
+  if(tapHeat>5){
+    const fH=12+tapHeat*.6+Math.sin(tapFrame*.35)*3;
+    for(let e=0;e<3;e++){
+      const ex=cx-11+e*11;
+      const fg=tapCtx.createLinearGradient(ex,rocketY,ex,rocketY+fH);
+      fg.addColorStop(0,'rgba(140,180,255,.95)');fg.addColorStop(.4,'rgba(80,100,252,.7)');fg.addColorStop(1,'rgba(0,0,0,0)');
+      tapCtx.beginPath();tapCtx.moveTo(ex-4,rocketY);tapCtx.lineTo(ex,rocketY+fH);tapCtx.lineTo(ex+4,rocketY);
+      tapCtx.fillStyle=fg;tapCtx.fill();
+    }
+    const eg=tapCtx.createRadialGradient(cx,rocketY,0,cx,rocketY,tapHeat*.5);
+    eg.addColorStop(0,`rgba(79,142,247,${tapHeat/180})`);eg.addColorStop(1,'rgba(0,0,0,0)');
+    tapCtx.beginPath();tapCtx.arc(cx,rocketY,tapHeat*.5,0,Math.PI*2);tapCtx.fillStyle=eg;tapCtx.fill();
+  }
+
+  // Ракета (масштаб относительно высоты canvas)
+  const sc=Math.max(0.55,Math.min(1.0,H/260));
+  tapCtx.save();tapCtx.translate(cx,rocketY);tapCtx.scale(sc,sc);
+  tapCtx.beginPath();tapCtx.moveTo(2,5);tapCtx.lineTo(13,40);tapCtx.lineTo(13,88);tapCtx.lineTo(2,88);tapCtx.fillStyle='rgba(0,0,0,.2)';tapCtx.fill();
+  tapCtx.beginPath();tapCtx.moveTo(0,-68);tapCtx.lineTo(13,40);tapCtx.lineTo(13,88);tapCtx.lineTo(-13,88);tapCtx.lineTo(-13,40);tapCtx.closePath();
+  const rbg=tapCtx.createLinearGradient(-13,0,13,0);
+  rbg.addColorStop(0,'#8aaac8');rbg.addColorStop(.22,'#c8ddf0');rbg.addColorStop(.5,'#eef8ff');rbg.addColorStop(.78,'#b8d0e8');rbg.addColorStop(1,'#6888a0');
+  tapCtx.fillStyle=rbg;tapCtx.fill();tapCtx.strokeStyle='#7090ae';tapCtx.lineWidth=.8;tapCtx.stroke();
+  tapCtx.beginPath();tapCtx.moveTo(0,-68);tapCtx.lineTo(13,40);tapCtx.lineTo(-13,40);tapCtx.closePath();
+  const rng=tapCtx.createLinearGradient(-13,0,13,0);
+  rng.addColorStop(0,'#a0c0d8');rng.addColorStop(.45,'#e0f2ff');rng.addColorStop(1,'#88a8c0');
+  tapCtx.fillStyle=rng;tapCtx.fill();tapCtx.strokeStyle='#7090ae';tapCtx.lineWidth=.8;tapCtx.stroke();
+  tapCtx.beginPath();tapCtx.arc(0,-68,3.5,0,Math.PI*2);tapCtx.fillStyle='#c0d8f0';tapCtx.fill();
+  const rwg=tapCtx.createRadialGradient(-2,-14,1,0,-12,10);
+  rwg.addColorStop(0,'rgba(200,240,255,.95)');rwg.addColorStop(.4,'rgba(100,180,255,.8)');rwg.addColorStop(1,'rgba(40,100,180,.6)');
+  tapCtx.beginPath();tapCtx.ellipse(0,-12,8,11,0,0,Math.PI*2);tapCtx.fillStyle=rwg;tapCtx.fill();
+  tapCtx.strokeStyle='rgba(180,220,255,.6)';tapCtx.lineWidth=1;tapCtx.stroke();
+  tapCtx.beginPath();tapCtx.ellipse(-2.5,-17,3,4,-.4,0,Math.PI*2);tapCtx.fillStyle='rgba(255,255,255,.25)';tapCtx.fill();
+  tapCtx.strokeStyle='rgba(79,142,247,.35)';tapCtx.lineWidth=1.5;
+  tapCtx.beginPath();tapCtx.moveTo(-12,16);tapCtx.lineTo(12,16);tapCtx.stroke();
+  tapCtx.beginPath();tapCtx.moveTo(-12,46);tapCtx.lineTo(12,46);tapCtx.stroke();
+  tapCtx.fillStyle='rgba(79,142,247,.2)';tapCtx.fillRect(-12,23,24,16);
+  tapCtx.fillStyle='rgba(140,190,255,.85)';tapCtx.font='bold 7px -apple-system';tapCtx.textAlign='center';tapCtx.fillText('MarsX',0,34);
+  tapCtx.beginPath();tapCtx.moveTo(-13,48);tapCtx.lineTo(-30,78);tapCtx.lineTo(-30,88);tapCtx.lineTo(-13,84);tapCtx.closePath();
+  const rlf=tapCtx.createLinearGradient(-30,0,-13,0);rlf.addColorStop(0,'#4a6080');rlf.addColorStop(1,'#8aaac8');
+  tapCtx.fillStyle=rlf;tapCtx.fill();tapCtx.strokeStyle='#4a6080';tapCtx.lineWidth=.7;tapCtx.stroke();
+  tapCtx.beginPath();tapCtx.moveTo(13,48);tapCtx.lineTo(30,78);tapCtx.lineTo(30,88);tapCtx.lineTo(13,84);tapCtx.closePath();
+  const rrf=tapCtx.createLinearGradient(13,0,30,0);rrf.addColorStop(0,'#8aaac8');rrf.addColorStop(1,'#4a6080');
+  tapCtx.fillStyle=rrf;tapCtx.fill();tapCtx.strokeStyle='#4a6080';tapCtx.lineWidth=.7;tapCtx.stroke();
+  for(let e2=0;e2<3;e2++){
+    const ex2=-11+e2*11;
+    tapCtx.beginPath();tapCtx.moveTo(ex2-5,84);tapCtx.lineTo(ex2-6,93);tapCtx.lineTo(ex2+6,93);tapCtx.lineTo(ex2+5,84);
+    tapCtx.closePath();tapCtx.fillStyle='#3a4a60';tapCtx.fill();
+    if(tapHeat>8){
+      const rng2=tapCtx.createRadialGradient(ex2,88,0,ex2,88,7);
+      rng2.addColorStop(0,`rgba(100,150,255,${tapHeat/150})`);rng2.addColorStop(1,'rgba(0,0,0,0)');
+      tapCtx.beginPath();tapCtx.arc(ex2,90,7,0,Math.PI*2);tapCtx.fillStyle=rng2;tapCtx.fill();
     }
   }
-  for (const s of rocketStars) {
-    tapCtx.beginPath();
-    tapCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-    tapCtx.fillStyle = `rgba(255,255,255,${s.o + Math.sin(tapFrame * .04 + s.x) * .06})`;
-    tapCtx.fill();
+  tapCtx.restore();
+
+  // Шкала топлива
+  const bw=W-28,bx2=14,by2=H-12,bh=5;
+  tapCtx.fillStyle='rgba(255,255,255,.06)';tapCtx.beginPath();tapCtx.roundRect(bx2,by2,bw,bh,3);tapCtx.fill();
+  if(tapHeat>0){
+    const hfg=tapCtx.createLinearGradient(bx2,0,bx2+bw,0);
+    hfg.addColorStop(0,'#4f8ef7');hfg.addColorStop(.5,'#7c5cfc');hfg.addColorStop(1,'#f5c518');
+    tapCtx.fillStyle=hfg;tapCtx.beginPath();tapCtx.roundRect(bx2,by2,bw*(tapHeat/100),bh,3);tapCtx.fill();
   }
-
-  // Световое зарево от планеты (цвет зависит от планеты)
-  const skyGrd = tapCtx.createRadialGradient(cx, H, 0, cx, H, 160);
-  skyGrd.addColorStop(0, vis.sky);
-  skyGrd.addColorStop(1, 'rgba(0,0,0,0)');
-  tapCtx.fillStyle = skyGrd;
-  tapCtx.fillRect(0, 0, W, H);
-
-  // Земля / поверхность планеты
-  tapCtx.fillStyle = vis.ground;
-  tapCtx.beginPath();
-  tapCtx.ellipse(cx, H + 8, W * .9, 28, 0, Math.PI, Math.PI * 2);
-  tapCtx.fill();
-
-  // Стартовая платформа
-  _drawPad(tapCtx, cx, H, vis.glow);
-
-  // Дым от двигателей
-  if (tapHeat > 15 && tapFrame % 2 === 0) {
-    for (let i = 0; i < 2; i++) {
-      const sx = cx + (-18 + i * 18) + (Math.random() - .5) * 8;
-      SMOKE_P.push({
-        x: sx, y: H - 68,
-        vx: (Math.random() - .5) * 1.2,
-        vy: -1.2 - Math.random() * .8,
-        r: 3 + Math.random() * 5,
-        life: .5 + Math.random() * .3,
-      });
-    }
-  }
-  for (let i = SMOKE_P.length - 1; i >= 0; i--) {
-    const s = SMOKE_P[i];
-    s.x += s.vx; s.y += s.vy; s.r += .25; s.life -= .018;
-    if (s.life <= 0) { SMOKE_P.splice(i, 1); continue; }
-    tapCtx.beginPath(); tapCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-    tapCtx.fillStyle = `rgba(180,200,230,${s.life * .5 * (tapHeat / 100)})`;
-    tapCtx.fill();
-  }
-
-  // Пламя двигателей
-  if (tapHeat > 5) {
-    const flameH = 16 + tapHeat * .7 + Math.sin(tapFrame * .35) * 3;
-    for (let e = 0; e < 3; e++) {
-      const ex = cx - 14 + e * 14, ey = H - 68;
-      const fg = tapCtx.createLinearGradient(ex, ey, ex, ey + flameH);
-      fg.addColorStop(0, `rgba(140,180,255,.95)`);
-      fg.addColorStop(.4, `rgba(80,100,252,.7)`);
-      fg.addColorStop(1, 'rgba(0,0,0,0)');
-      tapCtx.beginPath();
-      tapCtx.moveTo(ex - 5, ey); tapCtx.lineTo(ex, ey + flameH); tapCtx.lineTo(ex + 5, ey);
-      tapCtx.fillStyle = fg; tapCtx.fill();
-    }
-    // Glow под ракетой
-    const eg = tapCtx.createRadialGradient(cx, H - 66, 0, cx, H - 66, tapHeat * .55);
-    eg.addColorStop(0, `rgba(79,142,247,${tapHeat / 180})`);
-    eg.addColorStop(1, 'rgba(0,0,0,0)');
-    tapCtx.beginPath(); tapCtx.arc(cx, H - 66, tapHeat * .55, 0, Math.PI * 2);
-    tapCtx.fillStyle = eg; tapCtx.fill();
-  }
-
-  // Ракета
-  _drawRocket(tapCtx, cx, H - 70, tapHeat, vis.glow);
-
-  // Частицы от тапа
-  for (let i = TAP_P.length - 1; i >= 0; i--) {
-    const p = TAP_P[i];
-    p.x += p.vx; p.y += p.vy; p.vy += .12; p.life -= .028;
-    if (p.life <= 0) { TAP_P.splice(i, 1); continue; }
-    tapCtx.beginPath(); tapCtx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
-    tapCtx.fillStyle = `rgba(${p.c},${p.life})`; tapCtx.fill();
-  }
-
-  // Шкала топлива / прогрева внутри канваса
-  _drawHeatBar(tapCtx, W, H, tapHeat, vis.glow);
+  const hlbl=tapHeat>85?'🔥 Готово к старту!':tapHeat>40?`⚡ Прогрев ${Math.floor(tapHeat)}%`:'Тапай — добывай топливо';
+  tapCtx.fillStyle=tapHeat>85?'#f5c518':tapHeat>40?'#7c5cfc':'rgba(107,125,179,.8)';
+  tapCtx.font=`${tapHeat>85?'bold ':''}10px -apple-system`;
+  tapCtx.textAlign='center';tapCtx.fillText(hlbl,W/2,by2-5);
 
   requestAnimationFrame(animateTap);
 }
-
-function _drawPad(ctx, cx, H, glowColor) {
-  // База платформы
-  ctx.fillStyle = '#1a2540';
-  ctx.beginPath(); ctx.roundRect(cx - 60, H - 28, 120, 16, 3); ctx.fill();
-  ctx.fillStyle = '#263060';
-  ctx.fillRect(cx - 68, H - 32, 136, 6);
-
-  // Ноги
-  ['#1e2e4a', '#1e2e4a', '#1e2e4a'].forEach((col, i) => {
-    const lx = cx - 40 + i * 40;
-    ctx.fillStyle = col;
-    ctx.fillRect(lx - 3, H - 50, 6, 22);
-    ctx.fillStyle = '#141e30';
-    ctx.fillRect(lx - 7, H - 30, 14, 5);
-  });
-
-  // Руки поддержки
-  ctx.strokeStyle = '#263060'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(cx - 55, H - 28); ctx.lineTo(cx - 18, H - 90); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx + 55, H - 28); ctx.lineTo(cx + 18, H - 90); ctx.stroke();
-}
-
-function _drawRocket(ctx, cx, ry, heat, glowColor) {
-  ctx.save(); ctx.translate(cx, ry);
-
-  // Тень корпуса
-  ctx.beginPath();
-  ctx.moveTo(2, 8); ctx.lineTo(14, 42); ctx.lineTo(14, 92); ctx.lineTo(2, 92);
-  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fill();
-
-  // Основной корпус
-  ctx.beginPath();
-  ctx.moveTo(0, -72); ctx.lineTo(14, 42); ctx.lineTo(14, 92);
-  ctx.lineTo(-14, 92); ctx.lineTo(-14, 42); ctx.closePath();
-  const bg = ctx.createLinearGradient(-14, 0, 14, 0);
-  bg.addColorStop(0, '#8aaac8'); bg.addColorStop(.22, '#c8ddf0');
-  bg.addColorStop(.5, '#eef8ff'); bg.addColorStop(.78, '#b8d0e8'); bg.addColorStop(1, '#6888a0');
-  ctx.fillStyle = bg; ctx.fill();
-  ctx.strokeStyle = '#7090ae'; ctx.lineWidth = .8; ctx.stroke();
-
-  // Нос
-  ctx.beginPath();
-  ctx.moveTo(0, -72); ctx.lineTo(14, 42); ctx.lineTo(-14, 42); ctx.closePath();
-  const ng = ctx.createLinearGradient(-14, 0, 14, 0);
-  ng.addColorStop(0, '#a0c0d8'); ng.addColorStop(.45, '#e0f2ff'); ng.addColorStop(1, '#88a8c0');
-  ctx.fillStyle = ng; ctx.fill(); ctx.strokeStyle = '#7090ae'; ctx.lineWidth = .8; ctx.stroke();
-  ctx.beginPath(); ctx.arc(0, -72, 4, 0, Math.PI * 2);
-  ctx.fillStyle = '#c0d8f0'; ctx.fill();
-
-  // Иллюминатор
-  const wg = ctx.createRadialGradient(-3, -18, 1, 0, -16, 11);
-  wg.addColorStop(0, 'rgba(200,240,255,.95)'); wg.addColorStop(.4, 'rgba(100,180,255,.8)'); wg.addColorStop(1, 'rgba(40,100,180,.6)');
-  ctx.beginPath(); ctx.ellipse(0, -16, 9, 12, 0, 0, Math.PI * 2);
-  ctx.fillStyle = wg; ctx.fill(); ctx.strokeStyle = 'rgba(180,220,255,.6)'; ctx.lineWidth = 1; ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(-3, -21, 3.5, 4.5, -.4, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.fill();
-
-  // Полосы
-  ctx.strokeStyle = 'rgba(79,142,247,.35)'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(-13, 18); ctx.lineTo(13, 18); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-13, 50); ctx.lineTo(13, 50); ctx.stroke();
-
-  // Логотип MarsX
-  ctx.fillStyle = 'rgba(79,142,247,.22)'; ctx.fillRect(-13, 26, 26, 18);
-  ctx.fillStyle = 'rgba(140,190,255,.85)'; ctx.font = 'bold 7px -apple-system'; ctx.textAlign = 'center';
-  ctx.fillText('MarsX', 0, 38);
-
-  // Левый fin
-  ctx.beginPath();
-  ctx.moveTo(-14, 52); ctx.lineTo(-32, 82); ctx.lineTo(-32, 92); ctx.lineTo(-14, 88); ctx.closePath();
-  const lf = ctx.createLinearGradient(-32, 0, -14, 0);
-  lf.addColorStop(0, '#4a6080'); lf.addColorStop(1, '#8aaac8');
-  ctx.fillStyle = lf; ctx.fill(); ctx.strokeStyle = '#4a6080'; ctx.lineWidth = .7; ctx.stroke();
-
-  // Правый fin
-  ctx.beginPath();
-  ctx.moveTo(14, 52); ctx.lineTo(32, 82); ctx.lineTo(32, 92); ctx.lineTo(14, 88); ctx.closePath();
-  const rf = ctx.createLinearGradient(14, 0, 32, 0);
-  rf.addColorStop(0, '#8aaac8'); rf.addColorStop(1, '#4a6080');
-  ctx.fillStyle = rf; ctx.fill(); ctx.strokeStyle = '#4a6080'; ctx.lineWidth = .7; ctx.stroke();
-
-  // Сопла двигателей
-  for (let e = 0; e < 3; e++) {
-    const ex = -13 + e * 13;
-    ctx.beginPath();
-    ctx.moveTo(ex - 5, 88); ctx.lineTo(ex - 7, 98); ctx.lineTo(ex + 7, 98); ctx.lineTo(ex + 5, 88);
-    ctx.closePath(); ctx.fillStyle = '#3a4a60'; ctx.fill(); ctx.strokeStyle = '#2a3a50'; ctx.lineWidth = .7; ctx.stroke();
-
-    // Свечение сопла при нагреве
-    if (heat > 8) {
-      const nozzleGlow = ctx.createRadialGradient(ex, 93, 0, ex, 93, 8);
-      nozzleGlow.addColorStop(0, `rgba(100,150,255,${heat / 160})`);
-      nozzleGlow.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.beginPath(); ctx.arc(ex, 95, 8, 0, Math.PI * 2);
-      ctx.fillStyle = nozzleGlow; ctx.fill();
-    }
-  }
-
-  ctx.restore();
-}
-
-function _drawHeatBar(ctx, W, H, heat, glowColor) {
-  const bw = W - 32, bx = 16, by = H - 14, bh = 5;
-
-  // Track
-  ctx.fillStyle = 'rgba(255,255,255,.06)';
-  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 3); ctx.fill();
-
-  if (heat > 0) {
-    // Fill gradient
-    const fg = ctx.createLinearGradient(bx, 0, bx + bw, 0);
-    fg.addColorStop(0, '#4f8ef7'); fg.addColorStop(.5, '#7c5cfc'); fg.addColorStop(1, '#f5c518');
-    ctx.fillStyle = fg;
-    ctx.beginPath(); ctx.roundRect(bx, by, bw * (heat / 100), bh, 3); ctx.fill();
-  }
-
-  // Label
-  const fuelText = heat > 85
-    ? '🔥 Готово к старту!'
-    : heat > 40
-      ? `⚡ Прогрев ${Math.floor(heat)}%`
-      : `Тапай — добывай топливо`;
-  ctx.fillStyle = heat > 85 ? '#f5c518' : heat > 40 ? '#7c5cfc' : 'rgba(107,125,179,.8)';
-  ctx.font = `${heat > 85 ? 'bold' : 'normal'} 10px -apple-system`;
-  ctx.textAlign = 'center';
-  ctx.fillText(fuelText, W / 2, by - 5);
-}
-
 
 function updateMainUI(){
   document.getElementById('stat-fuel').innerHTML=`${Math.floor(G.fuel)} <span>F</span>`;
