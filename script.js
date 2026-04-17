@@ -145,9 +145,10 @@ async function loadUserData(){
   }
   console.log('[loadUserData] запрос для', G.tgId);
   const res=await apiGet('/user_data');
-  console.log('[loadUserData] ответ:', res?.status, res?.data ? 'data OK' : 'no data');
+  console.log('[loadUserData] ответ:', res?.status, res?.data);
   if(res?.status==='success'){
     const d=res.data;
+    console.log('[loadUserData] GC:', d.gc_balance, 'Fuel:', d.fuel, 'Inventory:', JSON.stringify(d.inventory));
     G.fuel           = d.fuel??0;
     G.fuelMax        = d.fuel_max??800;
     G.gc             = d.gc_balance??0;
@@ -345,7 +346,7 @@ function initTapCanvas() {
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
 
-  c.addEventListener('click', onTap);
+  c.addEventListener('click', e => onTap(e));
   c.addEventListener('touchstart', e => {
     e.preventDefault();
     onTap(e.touches[0]);
