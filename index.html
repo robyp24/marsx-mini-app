@@ -266,6 +266,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
   <div class="launch-wrap">
     <button class="launch-btn" onclick="showScreen('planet-screen');renderPlanets()">🚀 Запустить экспедицию</button>
   </div>
+  <div id="reset-flight-btn" style="display:none;padding:0 16px 8px;position:relative;z-index:2">
+    <button onclick="resetFlight()" style="width:100%;padding:11px;background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.4);border-radius:12px;color:#e74c3c;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)">
+      ⚠️ Корабль застрял — сбросить полёт
+    </button>
+  </div>
   <div class="bottom-nav">
     <div class="nav-btn active" onclick="showMain()"><div class="nav-icon">⚡</div><div class="nav-label">База</div></div>
     <div class="nav-btn" onclick="showScreen('planet-screen');renderPlanets()"><div class="nav-icon">🪐</div><div class="nav-label">Полёты</div></div>
