@@ -81,6 +81,23 @@ const getRank = ci => { let r=RANKS[0]; for(const k of RANKS) if(ci>=k.min) r=k;
 // ══════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════
+function onTap(e){
+  tapHeat = Math.min(100, tapHeat + 7);
+  if(e){
+    const c = document.getElementById('tap-canvas');
+    const rect = c.getBoundingClientRect();
+    const scale = c.width / rect.width;
+    const lx = (e.clientX - rect.left) * scale;
+    const ly = (e.clientY - rect.top) * scale;
+    const colors = ['79,142,247','124,92,252','245,197,24','100,180,255','180,150,255'];
+    for(let i=0;i<14;i++){
+      const a=Math.random()*Math.PI*2, sp=2+Math.random()*5;
+      TAP_P.push({x:lx,y:ly,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,r:2+Math.random()*3.5,life:1,c:colors[Math.floor(Math.random()*colors.length)]});
+    }
+  }
+  doTap(e);
+}
+
 window.onload = () => {
   createStarsBg();
   initTapCanvas();
@@ -346,10 +363,10 @@ function initTapCanvas() {
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
 
-  c.addEventListener('click', e => onTap(e));
+  c.addEventListener('click', e => { if(typeof onTap === 'function') onTap(e); });
   c.addEventListener('touchstart', e => {
     e.preventDefault();
-    onTap(e.touches[0]);
+    if(typeof onTap === 'function') onTap(e.touches[0]);
   }, { passive: false });
 
   animateTap();
@@ -595,8 +612,6 @@ function _drawHeatBar(ctx, W, H, heat, glowColor) {
   ctx.fillText(fuelText, W / 2, by - 5);
 }
 
-// ── Тап-обработчик — ЗАМЕНИ существующий onTap в script.js ──
-// Найди function onTap(e){ и замени весь блок на этот:
 
 function updateMainUI(){
   document.getElementById('stat-fuel').innerHTML=`${Math.floor(G.fuel)} <span>F</span>`;
@@ -613,6 +628,9 @@ function updateMainUI(){
   // Ежедневный индикатор
   const dailyBtn=document.getElementById('daily-indicator');
   if(dailyBtn) dailyBtn.style.display=G.dailyClaimedToday?'none':'flex';
+  // Кнопка сброса застрявшего полёта
+  const resetBtn=document.getElementById('reset-flight-btn');
+  if(resetBtn) resetBtn.style.display=G.inFlight?'block':'none';
 }
 
 function passiveTick(){
@@ -1011,6 +1029,20 @@ function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
+async function resetFlight(){
+  const r = await apiPost('/reset_flight');
+  if(r?.status === 'success'){
+    G.inFlight = false;
+    G.currentPlanet = null;
+    updateTapPlanet('earth');
+    showToast('Полёт сброшен — можешь лететь снова');
+    updateMainUI();
+    renderPlanets();
+  } else {
+    showToast('Ошибка сброса');
+  }
+}
+
 function showMain(){
   clearInterval(flightInterval);cancelAnimationFrame(flightAnimId);
   document.querySelectorAll('.space-obj').forEach(o=>o.remove());
