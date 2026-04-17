@@ -138,7 +138,14 @@ async function apiGet(path){
 }
 
 async function loadUserData(){
+  if(!G.tgId){
+    console.warn('[loadUserData] tgId not ready, retry in 500ms');
+    setTimeout(loadUserData, 500);
+    return;
+  }
+  console.log('[loadUserData] запрос для', G.tgId);
   const res=await apiGet('/user_data');
+  console.log('[loadUserData] ответ:', res?.status, res?.data ? 'data OK' : 'no data');
   if(res?.status==='success'){
     const d=res.data;
     G.fuel           = d.fuel??0;
@@ -155,13 +162,14 @@ async function loadUserData(){
     G.quests         = d.quests??{};
     G.season         = d.season??null;
     G.inFlight       = (d.state==='in_flight');
-    // Автопилот вернул результат пока были офлайн
     if(d.autopilot_result) showAutopilotResult(d.autopilot_result);
     updateMainUI();
-    // Показываем онбординг новичкам
     if(!G.onboardingDone) setTimeout(startOnboarding, 800);
-    // Показываем ежедневный бонус
     else if(!G.dailyClaimedToday) setTimeout(showDailyBonus, 1200);
+  } else {
+    console.error('[loadUserData] ошибка:', res);
+    showToast('Ошибка загрузки данных — повтор через 3 сек');
+    setTimeout(loadUserData, 3000);
   }
 }
 
@@ -318,7 +326,24 @@ function updateTapPlanet(planetKey) {
 
 function initTapCanvas() {
   const c = document.getElementById('tap-canvas');
+  if(!c){ console.error('[initTapCanvas] canvas not found!'); return; }
+
+  // Подгоняем реальный размер canvas под CSS-размер (retina + мобильный)
+  function resizeCanvas(){
+    const rect = c.getBoundingClientRect();
+    const dpr  = window.devicePixelRatio || 1;
+    const size = Math.min(rect.width || 260, 260);
+    c.width  = size * dpr;
+    c.height = size * dpr;
+    c.style.width  = size + 'px';
+    c.style.height = size + 'px';
+    if(tapCtx) tapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    rocketStars = null; // сбрасываем звёзды при ресайзе
+  }
+
   tapCtx = c.getContext('2d');
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
 
   c.addEventListener('click', onTap);
   c.addEventListener('touchstart', e => {
@@ -330,8 +355,10 @@ function initTapCanvas() {
 }
 
 function animateTap() {
+  if(!tapCtx){ requestAnimationFrame(animateTap); return; }
   const c = tapCtx.canvas;
   const W = c.width, H = c.height;
+  if(!W || !H){ requestAnimationFrame(animateTap); return; }
   const cx = W / 2;
   tapFrame++;
 
