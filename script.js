@@ -118,16 +118,18 @@ function applyUserUI(){
 //  API
 // ══════════════════════════════════════════
 async function apiPost(path, body={}){
+  if(!G.tgId){console.warn('[apiPost] tgId not ready, skip', path);return null;}
   try{
     const r=await fetch(API_URL+path,{
       method:'POST',
       headers:{'Content-Type':'application/json','ngrok-skip-browser-warning':'true'},
-      body:JSON.stringify({telegram_id:G.tgId, init_data:G.initData, ...body})
+      body:JSON.stringify({telegram_id:G.tgId, init_data:G.initData||'', ...body})
     });
     return await r.json();
   }catch(e){console.error(path,e);return null;}
 }
 async function apiGet(path){
+  if(!G.tgId){console.warn('[apiGet] tgId not ready, skip', path);return null;}
   try{
     const r=await fetch(`${API_URL}${path}?telegram_id=${G.tgId}`,
       {headers:{'ngrok-skip-browser-warning':'true'}});
@@ -251,6 +253,7 @@ function showDailyBonus(){
 }
 
 async function claimDaily(){
+  if(!G.tgId){showToast('Подожди — идёт загрузка...');return;}
   const res=await apiPost('/daily_claim');
   document.getElementById('daily-modal').style.display='none';
   if(res?.status==='success'){
