@@ -91,8 +91,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .flight-top{padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
 .flight-dest{font-size:14px;font-weight:600;color:rgba(255,255,255,.8)}
 .flight-timer{font-size:22px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 0 20px rgba(79,142,247,.8)}
-.flight-events{display:flex;flex-direction:column;justify-content:flex-end;padding:0 16px 110px;gap:6px;flex:1;overflow:hidden}
-.event-msg{font-size:13px;padding:8px 12px;border-radius:10px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.1);color:#fff;animation:slide-in .3s ease-out}
+.flight-events{position:absolute;bottom:70px;left:12px;right:12px;display:flex;flex-direction:column;gap:5px;pointer-events:none;z-index:3}
+.event-msg{font-size:11px;padding:5px 10px;border-radius:8px;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.85);animation:slide-in .25s ease-out;backdrop-filter:blur(4px)}
 @keyframes slide-in{from{transform:translateX(-16px);opacity:0}to{transform:translateX(0);opacity:1}}
 .event-msg.good{border-color:rgba(46,204,113,.5);color:#7fffa8}
 .event-msg.bad{border-color:rgba(231,76,60,.5);color:#ff9a9a}
