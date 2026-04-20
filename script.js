@@ -350,12 +350,15 @@ function initTapCanvas() {
   if(!c){ console.error('tap-canvas not found'); return; }
   tapCtx = c.getContext('2d');
   function resize(){
-    const parent = c.parentElement;
-    const s = Math.min(Math.max(parent ? parent.offsetWidth : 260, 200), 280);
-    c.width=s; c.height=s; c.style.width=s+'px'; c.style.height=s+'px';
+    // Занимаем всю ширину экрана минус отступы, высота пропорциональна
+    const vw = window.innerWidth || 375;
+    const W  = Math.min(vw - 24, 420);   // ширина с отступом 12px с каждой стороны
+    const H  = Math.floor(W * 1.05);      // чуть выше чем широкий
+    c.width=W; c.height=H;
+    c.style.width=W+'px'; c.style.height=H+'px';
     rocketStars=null;
   }
-  resize(); setTimeout(resize,150); setTimeout(resize,600);
+  resize(); setTimeout(resize,100); setTimeout(resize,500);
   window.addEventListener('resize', resize);
   c.addEventListener('click', e => onTap(e));
   c.addEventListener('touchstart', e=>{ e.preventDefault(); onTap(e.touches[0]); },{passive:false});
@@ -508,7 +511,8 @@ function updateMainUI(){
   if(dailyBtn) dailyBtn.style.display=G.dailyClaimedToday?'none':'flex';
   // Кнопка сброса застрявшего полёта
   const resetBtn=document.getElementById('reset-flight-btn');
-  if(resetBtn) resetBtn.style.display=G.inFlight?'block':'none';
+  // Показываем только если в полёте И нет автопилота (при автопилоте полёт штатный)
+  if(resetBtn) resetBtn.style.display=(G.inFlight && !G.inventory.autopilot)?'block':'none';
 }
 
 function passiveTick(){
@@ -697,7 +701,7 @@ function spawnFlightEvent(){const e=FLIGHT_EVT[Math.floor(Math.random()*FLIGHT_E
 function addFlightLog(msg,cls=''){
   const log=document.getElementById('flight-events');
   const d=document.createElement('div');d.className=`event-msg ${cls}`;d.textContent=msg;log.appendChild(d);
-  while(log.children.length>5)log.removeChild(log.firstChild);
+  while(log.children.length>2)log.removeChild(log.firstChild);
 }
 function updateFlightTimer(s){const m=Math.floor(s/60),sec=s%60;document.getElementById('flight-timer').textContent=`${m}:${sec.toString().padStart(2,'0')}`;}
 
@@ -707,7 +711,8 @@ async function finalizeFlight(planet){
   const riskMod=G.inventory.engine_2?-.15:G.inventory.engine_1?-.07:0;
   const success=Math.random()>(planet.risk+riskMod);
   G.inFlight=false;
-  updateTapPlanet('earth');
+  updateTapPlanet(planet.key);  // показываем планету куда прилетели
+  setTimeout(()=>updateTapPlanet('earth'), 5000);  // через 5 сек домой
   if(success){G.gc+=planet.reward;G.ci+=planet.ci;}
   showScreen('arrival-screen');
   document.getElementById('arrival-emoji').textContent=planet.emoji;
@@ -793,12 +798,18 @@ function renderMiners(){
       div.innerHTML=`<div class="miner-top"><div style="font-size:32px">${p.emoji}</div><div style="flex:1"><div class="miner-planet-name">${p.name}</div><div class="miner-resource">${p.resEmoji} ${p.resource} — не построен</div></div></div><button class="miner-btn build" onclick="buildMiner('${p.key}',300)">Построить — 300 GC</button>`;
     }else{
       const cap={1:200,2:500,3:1200}[m.level]||200,rate={1:2,2:5,3:12}[m.level]||2;
-      const pct=Math.min(100,(m.stored/cap)*100),upgCost={1:800,2:2000}[m.level];
+      // Считаем накопленное с учётом времени офлайна
+      const now=Date.now()/1000;
+      const lastCollect = m.last_collected || m.built_at || now;
+      const minsOffline = Math.max(0,(now-lastCollect)/60);
+      const earnedOffline = minsOffline * rate;
+      const realStored = Math.min(cap, (m.stored||0) + earnedOffline);
+      const pct=Math.min(100,(realStored/cap)*100),upgCost={1:800,2:2000}[m.level];
       div.innerHTML=`
         <div class="miner-top"><div style="font-size:32px">${p.emoji}</div><div style="flex:1"><div class="miner-planet-name">${p.name}</div><div class="miner-resource">${p.resEmoji} ${p.resource} · ${rate} ед/мин</div></div><div class="miner-level-badge">Ур. ${m.level}</div></div>
-        <div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px"><span>Хранилище</span><span>${Math.floor(m.stored)} / ${cap}</span></div><div class="miner-bar"><div class="miner-bar-fill" style="width:${pct}%"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px"><span>Хранилище</span><span>${Math.floor(realStored)} / ${cap}</span></div><div class="miner-bar"><div class="miner-bar-fill" style="width:${pct}%"></div></div></div>
         <div class="miner-actions">
-          <button class="miner-btn collect ${m.stored<1?'dis':''}" onclick="collectMiner('${p.key}')">Собрать ${Math.floor(m.stored)} GC</button>
+          <button class="miner-btn collect ${realStored<1?'dis':''}" onclick="collectMiner('${p.key}')">Собрать ${Math.floor(realStored)} GC</button>
           ${m.level<3?`<button class="miner-btn upgrade ${G.gc>=upgCost?'':'dis'}" onclick="upgradeMiner('${p.key}',${upgCost})">Ур.${m.level+1} — ${upgCost} GC</button>`:`<button class="miner-btn dis">Макс.</button>`}
         </div>`;
     }
@@ -823,11 +834,21 @@ async function upgradeMiner(pk,cost){
   updateMainUI();renderMiners();
 }
 async function collectMiner(pk){
-  const m=G.miners[pk];if(!m||m.stored<1){showToast('Нечего собирать');return;}
-  const amount=Math.floor(m.stored);G.gc+=amount;m.stored=0;
-  const r=await apiPost('/collect_miner',{planet_key:pk,amount});
-  if(r?.status==='success'){showToast(`💰 Собрано ${amount} GC!`);}
-  updateMainUI();renderMiners();
+  const m=G.miners[pk];
+  if(!m||m.level<1){showToast('Майнер не найден');return;}
+  showToast('Собираем ресурсы...');
+  const r=await apiPost('/collect_miner',{planet_key:pk});
+  if(r?.status==='success'){
+    const amount=r.data?.amount||0;
+    G.gc+=amount;
+    if(m) m.stored=0;
+    // Обновляем время последнего сбора локально
+    if(m) m.last_collected=Date.now()/1000;
+    showToast(`💰 Собрано ${amount} GC!`);
+    updateMainUI();renderMiners();
+  } else {
+    showToast(r?.message||'Ошибка сбора');
+  }
 }
 
 // ══════════════════════════════════════════
