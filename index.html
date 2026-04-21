@@ -214,6 +214,38 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .event-banner{margin:0 16px 8px;background:linear-gradient(135deg,rgba(79,142,247,.15),rgba(124,92,252,.15));border:1px solid rgba(79,142,247,.4);border-radius:12px;padding:10px 14px;display:none;position:relative;z-index:2;cursor:pointer}
 .event-banner-title{font-size:13px;font-weight:700;color:var(--accent)}
 .event-banner-desc{font-size:11px;color:var(--muted);margin-top:2px}
+
+#pvp-screen,#alliance-screen,#boss-screen,#craft-screen,#skins-screen{background:var(--bg);z-index:1}
+.pvp-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px 15px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.pvp-info{flex:1}
+.pvp-name{font-size:14px;font-weight:600}
+.pvp-stats{font-size:11px;color:var(--muted);margin-top:2px}
+.pvp-btn{padding:8px 14px;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);background:linear-gradient(135deg,var(--red),#c0392b);color:#fff;flex-shrink:0}
+.pvp-btn.shield{background:var(--bg3);color:var(--muted);cursor:default}
+.alliance-hero{background:linear-gradient(135deg,rgba(124,92,252,.15),rgba(79,142,247,.15));border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px;text-align:center}
+.alliance-name{font-size:20px;font-weight:800;color:var(--accent2);margin-bottom:4px}
+.alliance-member{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.boss-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px;text-align:center}
+.boss-emoji{font-size:64px;margin-bottom:8px}
+.boss-hp-bar{height:12px;background:var(--bg3);border-radius:6px;overflow:hidden;margin:10px 0}
+.boss-hp-fill{height:100%;background:linear-gradient(90deg,var(--red),var(--orange));border-radius:6px;transition:width .5s}
+.craft-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px}
+.craft-name{font-size:15px;font-weight:700;margin-bottom:4px}
+.craft-desc{font-size:11px;color:var(--muted);margin-bottom:10px}
+.ingredient{display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:0.5px solid var(--border)}
+.ingredient:last-child{border-bottom:none}
+.ingredient.ok{color:var(--green)}
+.ingredient.not-ok{color:var(--red)}
+.craft-btn{width:100%;padding:10px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.craft-btn:disabled{background:var(--bg3);color:var(--muted);cursor:default}
+.skin-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;transition:border-color .15s}
+.skin-card.active{border-color:var(--gold);background:rgba(245,197,24,.06)}
+.skin-preview{width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.skin-name{font-size:14px;font-weight:700;margin-bottom:2px}
+.skin-price{font-size:12px;color:var(--muted)}
+.skin-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
+.skin-badge.owned{background:rgba(46,204,113,.15);color:var(--green)}
+.skin-badge.active{background:rgba(245,197,24,.15);color:var(--gold)}
 </style>
 </head>
 <body>
@@ -297,6 +329,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     <div class="nav-btn" onclick="showAchievements()"><div class="nav-icon">🏅</div><div class="nav-label">Ачивки</div></div>
     <div class="nav-btn" onclick="showLeague()"><div class="nav-icon">🏆</div><div class="nav-label">Лига</div></div>
     <div class="nav-btn" onclick="showGalaxy()"><div class="nav-icon">🗺</div><div class="nav-label">Карта</div></div>
+    <div class="nav-btn" onclick="showMoreMenu()"><div class="nav-icon">☰</div><div class="nav-label">Ещё</div></div>
   </div>
 </div>
 
@@ -405,6 +438,61 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 <div id="achievements-screen" class="screen">
   <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Достижения</div></div>
   <div class="scroll-content" id="achievements-list"></div>
+</div>
+
+<!-- PvP SCREEN -->
+<div id="pvp-screen" class="screen">
+  <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Ограбление базы</div></div>
+  <div style="padding:0 16px 8px;font-size:12px;color:var(--muted);position:relative;z-index:2">Атакуй соседей по рейтингу. Кулдаун: 6 часов.</div>
+  <div class="scroll-content" id="pvp-targets-list"></div>
+</div>
+
+<!-- ALLIANCE SCREEN -->
+<div id="alliance-screen" class="screen">
+  <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Альянс</div></div>
+  <div class="scroll-content" id="alliance-content"></div>
+</div>
+
+<!-- BOSS SCREEN -->
+<div id="boss-screen" class="screen">
+  <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Еженедельный босс</div></div>
+  <div class="scroll-content" id="boss-content"></div>
+</div>
+
+<!-- CRAFT SCREEN -->
+<div id="craft-screen" class="screen">
+  <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Лаборатория крафта</div></div>
+  <div class="scroll-content" id="craft-content"></div>
+</div>
+
+<!-- SKINS SCREEN -->
+<div id="skins-screen" class="screen">
+  <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Скины ракеты</div></div>
+  <div class="scroll-content" id="skins-list"></div>
+</div>
+
+<!-- MORE MENU -->
+<div id="more-menu" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;align-items:flex-end" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--bg2);border-radius:20px 20px 0 0;padding:16px;width:100%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+    <div onclick="showPvP()" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">⚔️</div><div style="font-size:11px;color:var(--muted)">PvP</div>
+    </div>
+    <div onclick="showAlliance()" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">🤝</div><div style="font-size:11px;color:var(--muted)">Альянс</div>
+    </div>
+    <div onclick="showBoss()" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">👾</div><div style="font-size:11px;color:var(--muted)">Босс</div>
+    </div>
+    <div onclick="showCraft()" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">🧪</div><div style="font-size:11px;color:var(--muted)">Крафт</div>
+    </div>
+    <div onclick="showSkins()" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">🎨</div><div style="font-size:11px;color:var(--muted)">Скины</div>
+    </div>
+    <div onclick="showAchievements()" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">🏅</div><div style="font-size:11px;color:var(--muted)">Ачивки</div>
+    </div>
+  </div>
 </div>
 <script src="script.js"></script>
 </body>
