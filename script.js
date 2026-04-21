@@ -443,8 +443,12 @@ function animateTap() {
   tapCtx.save();tapCtx.translate(cx,rocketY);tapCtx.scale(sc,sc);
   tapCtx.beginPath();tapCtx.moveTo(2,5);tapCtx.lineTo(13,40);tapCtx.lineTo(13,88);tapCtx.lineTo(2,88);tapCtx.fillStyle='rgba(0,0,0,.2)';tapCtx.fill();
   tapCtx.beginPath();tapCtx.moveTo(0,-68);tapCtx.lineTo(13,40);tapCtx.lineTo(13,88);tapCtx.lineTo(-13,88);tapCtx.lineTo(-13,40);tapCtx.closePath();
+  const skinC = currentSkinColors || {};
+  const bodyC = skinC.body || '#c8d8ec';
+  const noseC = skinC.nose || '#e0f2ff';
+  const finC  = skinC.fin  || '#8aaac8';
   const rbg=tapCtx.createLinearGradient(-13,0,13,0);
-  rbg.addColorStop(0,'#8aaac8');rbg.addColorStop(.22,'#c8ddf0');rbg.addColorStop(.5,'#eef8ff');rbg.addColorStop(.78,'#b8d0e8');rbg.addColorStop(1,'#6888a0');
+  rbg.addColorStop(0,finC);rbg.addColorStop(.22,bodyC);rbg.addColorStop(.5,noseC);rbg.addColorStop(.78,bodyC);rbg.addColorStop(1,finC);
   tapCtx.fillStyle=rbg;tapCtx.fill();tapCtx.strokeStyle='#7090ae';tapCtx.lineWidth=.8;tapCtx.stroke();
   tapCtx.beginPath();tapCtx.moveTo(0,-68);tapCtx.lineTo(13,40);tapCtx.lineTo(-13,40);tapCtx.closePath();
   const rng=tapCtx.createLinearGradient(-13,0,13,0);
@@ -1286,6 +1290,293 @@ function getEventLabel(type){
 // Применяем бонус события к тапу
 const _origDoTap = doTap;
 
+
+// ══════════════════════════════════════════
+//  MORE MENU
+// ══════════════════════════════════════════
+function showMoreMenu(){
+  const m = document.getElementById('more-menu');
+  m.style.display = 'flex';
+}
+
+// ══════════════════════════════════════════
+//  PvP — ОГРАБЛЕНИЕ
+// ══════════════════════════════════════════
+async function showPvP(){
+  document.getElementById('more-menu').style.display='none';
+  showScreen('pvp-screen');
+  const list = document.getElementById('pvp-targets-list');
+  list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Загрузка...</div>';
+  const res = await apiGet('/pvp_targets');
+  list.innerHTML = '';
+  if(!res||res.status!=='success'){
+    list.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)">Ошибка загрузки</div>'; return;
+  }
+  const targets = res.data.targets;
+  if(!targets.length){
+    list.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)">Нет доступных целей рядом по рейтингу</div>'; return;
+  }
+  targets.forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'pvp-card';
+    const hasShield = t.shields > 0;
+    div.innerHTML = `
+      <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--red),#c0392b);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">
+        ${(t.first_name||'?').slice(0,2).toUpperCase()}
+      </div>
+      <div class="pvp-info">
+        <div class="pvp-name">${t.first_name||'Командор'}</div>
+        <div class="pvp-stats">CI: ${t.ci} · Топливо: ${t.fuel}F ${hasShield?'🛡 Защищён':''}</div>
+      </div>
+      <button class="pvp-btn ${hasShield?'shield':''}" onclick="attackPlayer(${t.telegram_id},'${t.first_name||'Командор'}')">
+        ${hasShield?'🛡 Щит':'⚔️ Атака'}
+      </button>`;
+    list.appendChild(div);
+  });
+}
+
+async function attackPlayer(targetId, name){
+  const res = await apiPost('/pvp_attack', {target_id: targetId});
+  if(res?.status==='success'){
+    showToast(res.data.message);
+    if(res.data.stolen > 0) G.fuel = Math.min(G.fuelMax, G.fuel + res.data.stolen);
+    updateMainUI();
+    setTimeout(showPvP, 1000);
+  } else {
+    showToast(res?.message || 'Ошибка атаки');
+  }
+}
+
+// ══════════════════════════════════════════
+//  АЛЬЯНСЫ
+// ══════════════════════════════════════════
+async function showAlliance(){
+  document.getElementById('more-menu').style.display='none';
+  showScreen('alliance-screen');
+  renderAllianceScreen();
+}
+
+async function renderAllianceScreen(){
+  const content = document.getElementById('alliance-content');
+  content.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Загрузка...</div>';
+  const res = await apiGet('/alliance_info');
+  content.innerHTML = '';
+  if(!res||res.status!=='success') return;
+  const alliance = res.data.alliance;
+  if(!alliance){
+    content.innerHTML = `
+      <div class="alliance-hero" style="background:var(--card);border:1px solid var(--border)">
+        <div style="font-size:40px;margin-bottom:8px">🤝</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px">Ты не в альянсе</div>
+        <div style="font-size:12px;color:var(--muted)">Создай или вступи в альянс</div>
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Создать новый (500 GC)</div>
+        <input id="alliance-name-input" placeholder="Название альянса" style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;margin-bottom:8px;font-family:var(--font)"/>
+        <button onclick="createAlliance()" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--accent2),var(--accent));border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Создать альянс</button>
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Вступить по ID</div>
+        <input id="alliance-id-input" placeholder="ID альянса" style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;margin-bottom:8px;font-family:var(--font)"/>
+        <button onclick="joinAlliance()" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--green),#1abc9c);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Вступить</button>
+      </div>`;
+    return;
+  }
+  const members = alliance.members||[];
+  content.innerHTML = `
+    <div class="alliance-hero">
+      <div style="font-size:32px;margin-bottom:6px">🤝</div>
+      <div class="alliance-name">${alliance.name}</div>
+      <div style="font-size:12px;color:var(--muted)">${members.length} / 20 членов</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">ID: ${alliance._id}</div>
+    </div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:8px">Участники</div>
+    ${members.map((m,i)=>`
+      <div class="alliance-member">
+        <div style="font-size:12px;color:var(--muted);min-width:20px">${i+1}</div>
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${(m.first_name||'?').slice(0,2).toUpperCase()}</div>
+        <div style="flex:1;font-size:13px">${m.first_name||'Командор'}</div>
+        <div style="font-size:12px;font-weight:700;color:var(--accent)">${(m.colonist_index?.score||0)} CI</div>
+      </div>`).join('')}
+    <button onclick="leaveAlliance()" style="width:100%;padding:12px;background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.3);border-radius:12px;color:var(--red);font-size:13px;font-weight:600;cursor:pointer;margin-top:12px;font-family:var(--font)">Покинуть альянс</button>`;
+}
+
+async function createAlliance(){
+  const name = document.getElementById('alliance-name-input').value.trim();
+  if(!name){showToast('Введи название'); return;}
+  const res = await apiPost('/create_alliance',{name});
+  if(res?.status==='success'){ showToast('✅ Альянс создан!'); renderAllianceScreen(); }
+  else showToast(res?.message||'Ошибка');
+}
+async function joinAlliance(){
+  const id = document.getElementById('alliance-id-input').value.trim();
+  if(!id){showToast('Введи ID альянса'); return;}
+  const res = await apiPost('/join_alliance',{alliance_id:id});
+  if(res?.status==='success'){ showToast('✅ Вступил в альянс!'); renderAllianceScreen(); }
+  else showToast(res?.message||'Ошибка');
+}
+async function leaveAlliance(){
+  const res = await apiPost('/leave_alliance');
+  if(res?.status==='success'){ showToast('Покинул альянс'); renderAllianceScreen(); }
+}
+
+// ══════════════════════════════════════════
+//  БОСС
+// ══════════════════════════════════════════
+async function showBoss(){
+  document.getElementById('more-menu').style.display='none';
+  showScreen('boss-screen');
+  const content = document.getElementById('boss-content');
+  content.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">Загрузка...</div>';
+  const res = await apiGet('/boss_status');
+  content.innerHTML='';
+  if(!res||res.status!=='success') return;
+  const boss = res.data.boss;
+  if(!boss){
+    const nextSec = res.data.next_boss_in||0;
+    const d=Math.floor(nextSec/86400), h=Math.floor((nextSec%86400)/3600);
+    content.innerHTML=`
+      <div class="boss-card">
+        <div class="boss-emoji">😴</div>
+        <div style="font-size:18px;font-weight:800;margin-bottom:6px">Босс отдыхает</div>
+        <div style="font-size:13px;color:var(--muted)">Следующий босс появится через</div>
+        <div style="font-size:28px;font-weight:900;color:var(--accent);margin-top:8px">${d}д ${h}ч</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Каждое воскресенье в 20:00 UTC</div>
+      </div>`;
+    return;
+  }
+  const hpPct = Math.max(0, Math.min(100, (boss.current_hp/boss.max_hp)*100));
+  const top = boss.top_attackers||[];
+  content.innerHTML=`
+    <div class="boss-card">
+      <div class="boss-emoji">${boss.emoji||'👾'}</div>
+      <div style="font-size:20px;font-weight:800;margin-bottom:4px">${boss.name}</div>
+      <div style="font-size:13px;color:var(--muted)">HP: ${Math.floor(boss.current_hp).toLocaleString()} / ${boss.max_hp.toLocaleString()}</div>
+      <div class="boss-hp-bar"><div class="boss-hp-fill" style="width:${hpPct}%"></div></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Мой урон: ${(boss.my_damage||0).toLocaleString()}</div>
+      <button onclick="attackBoss()" style="width:100%;padding:14px;background:linear-gradient(135deg,var(--red),#c0392b);border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;font-family:var(--font)">
+        ⚔️ Атаковать босса
+      </button>
+    </div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:8px">Топ атакующих</div>
+    ${top.map((t,i)=>`<div class="alliance-member">
+      <div style="font-size:12px;color:var(--muted);min-width:20px">${['🥇','🥈','🥉','4.','5.'][i]}</div>
+      <div style="flex:1;font-size:13px">Игрок ${t.tid}</div>
+      <div style="font-size:12px;font-weight:700;color:var(--red)">${t.dmg.toLocaleString()} урона</div>
+    </div>`).join('')}
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center">Топ-10 по урону получат награды когда босс будет убит</div>`;
+}
+
+async function attackBoss(){
+  const res = await apiPost('/boss_attack');
+  if(res?.status==='success'){
+    const d = res.data;
+    showToast(`💥 Урон: ${d.damage.toLocaleString()}! ${d.boss_dead?'БОСС УБИТ!':''}`);
+    if(window.Telegram?.WebApp?.HapticFeedback) Telegram.WebApp.HapticFeedback.impactOccurred('heavy');
+    setTimeout(showBoss, 500);
+  } else showToast(res?.message||'Ошибка атаки');
+}
+
+// ══════════════════════════════════════════
+//  КРАФТ
+// ══════════════════════════════════════════
+async function showCraft(){
+  document.getElementById('more-menu').style.display='none';
+  showScreen('craft-screen');
+  const content = document.getElementById('craft-content');
+  content.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">Загрузка...</div>';
+  const res = await apiGet('/craft_info');
+  content.innerHTML='';
+  if(!res||res.status!=='success') return;
+  const {recipes, resources} = res.data;
+  // Ресурсы
+  const resNames = {moon_helium:'🔵 Гелий-3',mars_iron:'🟤 Железо',jupiter_antimatter:'⚡ Антиматерия',saturn_crystals:'💎 Кристаллы',neptune_neutronium:'🌀 Нейтрониум',alpha_dark_matter:'🌑 Тёмная материя'};
+  const resHtml = Object.entries(resNames).map(([k,n])=>`
+    <div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:0.5px solid var(--border)">
+      <span>${n}</span><span style="font-weight:700;color:var(--accent)">${resources[k]||0}</span>
+    </div>`).join('');
+  content.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px">🧪 Мои ресурсы</div>
+      ${resHtml}
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Ресурсы получаешь при успешных полётах</div>
+    </div>`;
+  recipes.forEach(recipe => {
+    const div = document.createElement('div');
+    div.className = 'craft-card';
+    const ingHtml = recipe.ingredients_display.map(ing=>`
+      <div class="ingredient ${ing.have>=ing.need?'ok':'not-ok'}">
+        <span>${ing.name}</span>
+        <span>${ing.have} / ${ing.need}</span>
+      </div>`).join('');
+    div.innerHTML = `
+      <div class="craft-name">${recipe.emoji} ${recipe.name}</div>
+      <div class="craft-desc">${recipe.description}</div>
+      <div>${ingHtml}</div>
+      <button class="craft-btn" ${recipe.can_craft?'':'disabled'} onclick="doCraft('${recipe.key}')">
+        ${recipe.can_craft?'🔨 Создать':'Недостаточно ресурсов'}
+      </button>`;
+    content.appendChild(div);
+  });
+}
+
+async function doCraft(key){
+  const res = await apiPost('/craft',{recipe_key:key});
+  if(res?.status==='success'){
+    showToast(`✅ Создано: ${res.data.crafted}`);
+    if(window.Telegram?.WebApp?.HapticFeedback) Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+    showCraft();
+  } else showToast(res?.message||'Ошибка крафта');
+}
+
+// ══════════════════════════════════════════
+//  СКИНЫ РАКЕТЫ
+// ══════════════════════════════════════════
+let currentSkinColors = null;
+
+async function showSkins(){
+  document.getElementById('more-menu').style.display='none';
+  showScreen('skins-screen');
+  const list = document.getElementById('skins-list');
+  list.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">Загрузка...</div>';
+  const res = await apiGet('/skins_info');
+  list.innerHTML='';
+  if(!res||res.status!=='success') return;
+  const {skins} = res.data;
+  skins.forEach(skin => {
+    const div = document.createElement('div');
+    div.className=`skin-card ${skin.active?'active':''}`;
+    const priceLabel = skin.price===0?'Бесплатно':skin.currency==='stars'?`⭐ ${skin.price} Stars`:`${skin.price} GC`;
+    let btnHtml = '';
+    if(skin.active) btnHtml = '<span class="skin-badge active">Активна</span>';
+    else if(skin.owned) btnHtml = `<button onclick="equipSkin('${skin.key}')" style="padding:7px 12px;border:none;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">Надеть</button>`;
+    else btnHtml = `<button onclick="buySkin('${skin.key}')" style="padding:7px 12px;border:none;border-radius:8px;background:linear-gradient(135deg,var(--gold),var(--orange));color:#1a0a00;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">${priceLabel}</button>`;
+    div.innerHTML=`
+      <div class="skin-preview" style="background:${skin.colors?.body||'#c8d8ec'}20">${skin.emoji}</div>
+      <div style="flex:1">
+        <div class="skin-name">${skin.name}</div>
+        <div class="skin-price">${priceLabel}</div>
+      </div>
+      ${btnHtml}`;
+    list.appendChild(div);
+  });
+}
+
+async function buySkin(key){
+  const res = await apiPost('/buy_skin',{skin_key:key});
+  if(res?.status==='success'){ showToast('✅ Скин куплен!'); showSkins(); }
+  else showToast(res?.message||'Ошибка покупки');
+}
+
+async function equipSkin(key){
+  const res = await apiPost('/equip_skin',{skin_key:key});
+  if(res?.status==='success'){
+    currentSkinColors = res.data.colors;
+    rocketStars = null; // перерисовываем
+    showToast('🎨 Скин применён!');
+    showSkins();
+  } else showToast(res?.message||'Ошибка');
+}
 
 // ══════════════════════════════════════════
 //  TOAST + STARS
