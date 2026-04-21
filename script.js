@@ -106,6 +106,7 @@ window.onload = () => {
   setInterval(saveFuel,      10000);
   setInterval(minerTick,     60000);
   setInterval(checkAutopilot,30000);
+  setInterval(checkActiveEvent, 300000);
 };
 
 function initTelegram(){
@@ -947,6 +948,344 @@ function showMain(){
   document.querySelectorAll('.space-obj').forEach(o=>o.remove());
   showScreen('main-screen');updateMainUI();renderPlanets();
 }
+
+// ══════════════════════════════════════════
+//  SPIN — Колесо фортуны
+// ══════════════════════════════════════════
+let spinRewards = [], spinCanSpin = false, spinAnimating = false, spinAngle = 0;
+
+async function showSpin(){
+  showScreen('spin-screen');
+  const res = await apiGet('/spin_info');
+  if(res?.status === 'success'){
+    spinRewards  = res.data.rewards;
+    spinCanSpin  = res.data.can_spin;
+    const next   = res.data.next_spin_in;
+    const h = Math.floor(next/3600), m = Math.floor((next%3600)/60);
+    document.getElementById('spin-next-time').textContent =
+      spinCanSpin ? '✨ Бесплатное вращение доступно!' : `Следующий спин через ${h}ч ${m}м`;
+    document.getElementById('spin-btn').disabled = !spinCanSpin;
+    document.getElementById('spin-btn').style.opacity = spinCanSpin ? '1' : '0.5';
+    drawSpinWheel(0);
+  }
+}
+
+function drawSpinWheel(angle){
+  const canvas = document.getElementById('spin-canvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height, cx = W/2, cy = H/2, r = cx - 8;
+  ctx.clearRect(0,0,W,H);
+  if(!spinRewards.length) return;
+  const n     = spinRewards.length;
+  const slice = (Math.PI*2) / n;
+
+  spinRewards.forEach((reward, i) => {
+    const start = angle + i * slice;
+    const end   = start + slice;
+    // Сектор
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, end);
+    ctx.closePath();
+    ctx.fillStyle = reward.color || '#4f8ef7';
+    ctx.globalAlpha = 0.85;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#07091a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Текст
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + slice/2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px -apple-system';
+    ctx.shadowColor = 'rgba(0,0,0,.5)';
+    ctx.shadowBlur = 3;
+    ctx.fillText(reward.label, r - 8, 4);
+    ctx.restore();
+  });
+
+  // Центральный круг
+  ctx.beginPath();
+  ctx.arc(cx, cy, 22, 0, Math.PI*2);
+  ctx.fillStyle = '#07091a';
+  ctx.fill();
+  ctx.strokeStyle = '#263060';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+async function doSpin(){
+  if(spinAnimating || !spinCanSpin) return;
+  spinAnimating = true;
+  document.getElementById('spin-btn').disabled = true;
+  document.getElementById('spin-result').textContent = '';
+
+  const res = await apiPost('/spin');
+  if(!res || res.status !== 'success'){
+    showToast(res?.message || 'Ошибка спина');
+    spinAnimating = false;
+    return;
+  }
+
+  const reward     = res.data.reward;
+  const resultIdx  = res.data.result_idx;
+  const n          = spinRewards.length;
+  const slice      = (Math.PI*2) / n;
+  // Целевой угол — чтобы нужный сектор оказался под стрелкой (top = -PI/2)
+  const targetAngle = -(Math.PI/2) - (resultIdx * slice + slice/2);
+  const spins      = Math.PI * 2 * (5 + Math.random()*3); // 5-8 оборотов
+  const finalAngle = targetAngle - spins;
+
+  const start    = spinAngle;
+  const duration = 4000;
+  const startTime = performance.now();
+
+  function animate(now){
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    // Ease out cubic
+    const ease = 1 - Math.pow(1 - progress, 3);
+    spinAngle = start + (finalAngle - start) * ease;
+    drawSpinWheel(spinAngle);
+    if(progress < 1){
+      requestAnimationFrame(animate);
+    } else {
+      // Готово
+      spinAnimating = false;
+      spinCanSpin   = false;
+      // Применяем локально
+      if(reward.type === 'gc') G.gc += reward.value;
+      else if(reward.type === 'fuel') G.fuel = Math.min(G.fuelMax, G.fuel + reward.value);
+      else if(reward.type === 'shield') G.inventory.shield = (G.inventory.shield||0) + reward.value;
+      document.getElementById('spin-result').textContent = `🎉 ${reward.label}`;
+      document.getElementById('spin-next-time').textContent = 'Следующий спин через 24 часа';
+      if(window.Telegram?.WebApp?.HapticFeedback)
+        Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      updateMainUI();
+    }
+  }
+  requestAnimationFrame(animate);
+
+  // Применяем награду на сервере (уже сохранено в /spin)
+  G.gc = G.gc; // просто обновим UI
+}
+
+// ══════════════════════════════════════════
+//  GALAXY MAP — Карта галактики
+// ══════════════════════════════════════════
+const GALAXY_PLANETS = [
+  {key:'earth',   name:'Земля',         emoji:'🌍', color:'#1a6e3a', x:.5,  y:.82, r:22},
+  {key:'moon',    name:'Луна',          emoji:'🌙', color:'#888',    x:.62, y:.72, r:12},
+  {key:'mars',    name:'Марс',          emoji:'🔴', color:'#8b2500', x:.72, y:.55, r:16},
+  {key:'jupiter', name:'Юпитер',        emoji:'🟠', color:'#c4820a', x:.6,  y:.38, r:24},
+  {key:'saturn',  name:'Сатурн',        emoji:'🪐', color:'#c8a060', x:.3,  y:.3,  r:20},
+  {key:'neptune', name:'Нептун',        emoji:'🔵', color:'#1a3a8f', x:.18, y:.52, r:17},
+  {key:'alpha',   name:'Alpha Centauri',emoji:'⭐', color:'#9060ff', x:.12, y:.22, r:14},
+];
+
+let galaxyData = null, galaxyFrame = 0, galaxyAnimId = null;
+
+async function showGalaxy(){
+  showScreen('galaxy-screen');
+  const res = await apiGet('/galaxy_map');
+  if(res?.status === 'success') galaxyData = res.data;
+  initGalaxyCanvas();
+}
+
+function initGalaxyCanvas(){
+  const canvas = document.getElementById('galaxy-canvas');
+  if(!canvas) return;
+  canvas.width  = canvas.offsetWidth  || window.innerWidth;
+  canvas.height = canvas.offsetHeight || window.innerHeight - 80;
+  animateGalaxy(canvas);
+
+  canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const my = (e.clientY - rect.top)  * (canvas.height / rect.height);
+    const W = canvas.width, H = canvas.height;
+    GALAXY_PLANETS.forEach(p => {
+      const px = p.x * W, py = p.y * H;
+      const dist = Math.sqrt((mx-px)**2 + (my-py)**2);
+      if(dist < p.r + 14){
+        const pData = galaxyData?.planets?.find(d=>d.key===p.key);
+        const tip = document.getElementById('galaxy-tooltip');
+        const visited = pData?.visited || p.key === 'earth';
+        const flights = pData?.flights || 0;
+        const minerLv = pData?.miner_level || 0;
+        tip.innerHTML = `<b style="color:#4f8ef7">${p.emoji} ${p.name}</b><br>${visited?`✅ Посещена · ${flights} полётов`:'🔒 Не посещена'}${minerLv>0?`<br>⛏ Майнер ур.${minerLv}`:''}`;
+        tip.style.display = 'block';
+        tip.style.left    = Math.min(mx + 10, W - 160) + 'px';
+        tip.style.top     = Math.min(my + 10, H - 80)  + 'px';
+        setTimeout(()=> tip.style.display = 'none', 2500);
+      }
+    });
+  });
+}
+
+function animateGalaxy(canvas){
+  if(galaxyAnimId) cancelAnimationFrame(galaxyAnimId);
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // Генерируем звёзды один раз
+  if(!animateGalaxy._stars){
+    animateGalaxy._stars = [];
+    for(let i=0;i<150;i++) animateGalaxy._stars.push({x:Math.random(),y:Math.random(),r:.3+Math.random()*1.2,o:.1+Math.random()*.6});
+  }
+
+  function frame(){
+    galaxyFrame++;
+    ctx.fillStyle = '#07091a';
+    ctx.fillRect(0,0,W,H);
+
+    // Звёзды
+    for(const s of animateGalaxy._stars){
+      ctx.beginPath(); ctx.arc(s.x*W, s.y*H, s.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${s.o + Math.sin(galaxyFrame*.03+s.x*10)*.05})`;
+      ctx.fill();
+    }
+
+    // Орбиты (пунктирные)
+    ctx.setLineDash([4, 8]);
+    ctx.strokeStyle = 'rgba(79,142,247,.12)';
+    ctx.lineWidth = 1;
+    const earthX = .5*W, earthY = .82*H;
+    GALAXY_PLANETS.forEach(p => {
+      if(p.key === 'earth') return;
+      const px = p.x*W, py = p.y*H;
+      const dist = Math.sqrt((px-earthX)**2 + (py-earthY)**2);
+      ctx.beginPath(); ctx.arc(earthX, earthY, dist, 0, Math.PI*2); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+
+    // Планеты
+    GALAXY_PLANETS.forEach((p, i) => {
+      const px = p.x*W, py = p.y*H;
+      const pData = galaxyData?.planets?.find(d=>d.key===p.key);
+      const visited = pData?.visited || p.key === 'earth';
+      const pulse   = Math.sin(galaxyFrame*.04 + i) * 2;
+
+      // Glow
+      const g = ctx.createRadialGradient(px,py,0,px,py,p.r*2.5);
+      g.addColorStop(0, visited ? p.color+'55' : 'rgba(40,40,60,.3)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py,p.r*2.5,0,Math.PI*2); ctx.fill();
+
+      // Планета
+      const pg = ctx.createRadialGradient(px-p.r*.3,py-p.r*.3,p.r*.1,px,py,p.r+pulse);
+      pg.addColorStop(0, visited ? lighten(p.color) : '#2a2a3a');
+      pg.addColorStop(1, visited ? p.color : '#1a1a2a');
+      ctx.beginPath(); ctx.arc(px,py,p.r+pulse,0,Math.PI*2);
+      ctx.fillStyle = pg; ctx.fill();
+      ctx.strokeStyle = visited ? p.color+'99' : '#333355';
+      ctx.lineWidth = 1.5; ctx.stroke();
+
+      // Майнер индикатор
+      if(pData?.has_miner){
+        ctx.beginPath(); ctx.arc(px+p.r*.7, py-p.r*.7, 5, 0, Math.PI*2);
+        ctx.fillStyle = '#2ecc71'; ctx.fill();
+      }
+
+      // Emoji
+      ctx.font = `${p.r * 1.1}px serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.globalAlpha = visited ? 1 : .4;
+      ctx.fillText(p.emoji, px, py);
+      ctx.globalAlpha = 1;
+
+      // Название
+      ctx.font = 'bold 10px -apple-system';
+      ctx.fillStyle = visited ? 'rgba(255,255,255,.8)' : 'rgba(255,255,255,.3)';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText(p.name, px, py + p.r + pulse + 4);
+    });
+
+    // Статистика
+    if(galaxyData){
+      ctx.font = '11px -apple-system'; ctx.fillStyle = 'rgba(107,125,179,.7)';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(`Полётов: ${galaxyData.total_flights} · CI: ${galaxyData.ci_score}`, 12, 12);
+    }
+
+    galaxyAnimId = requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+function lighten(hex){
+  try{
+    const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+    return `rgb(${Math.min(255,r+60)},${Math.min(255,g+60)},${Math.min(255,b+60)})`;
+  }catch{return hex;}
+}
+
+// ══════════════════════════════════════════
+//  ACHIEVEMENTS
+// ══════════════════════════════════════════
+async function showAchievements(){
+  showScreen('achievements-screen');
+  const res = await apiGet('/achievements');
+  if(res?.status !== 'success') return;
+  const list = document.getElementById('achievements-list');
+  list.innerHTML = `<div style="text-align:center;margin-bottom:14px;font-size:13px;color:var(--muted)">
+    Получено ${res.data.total} / ${res.data.achievements.length}
+  </div>`;
+  res.data.achievements.forEach(a => {
+    const div = document.createElement('div');
+    div.className = `achievement-item ${a.earned?'earned':'locked'}`;
+    div.innerHTML = `
+      <div class="ach-icon">${a.icon}</div>
+      <div class="ach-info">
+        <div class="ach-title">${a.label} ${a.earned?'✅':''}</div>
+        <div class="ach-desc">${a.desc}</div>
+      </div>
+      <div class="ach-reward">${a.earned?'+'+a.reward+' GC':'?'}</div>`;
+    list.appendChild(div);
+  });
+}
+
+// ══════════════════════════════════════════
+//  ACTIVE EVENT BANNER
+// ══════════════════════════════════════════
+let activeEvent = null;
+
+async function checkActiveEvent(){
+  const res = await apiGet('/active_event');
+  if(res?.status === 'success'){
+    activeEvent = res.data.event;
+    const banner = document.getElementById('event-banner');
+    if(!banner) return;
+    if(activeEvent){
+      const left = activeEvent.time_left;
+      const h = Math.floor(left/3600), m = Math.floor((left%3600)/60);
+      document.getElementById('event-banner-title').textContent = getEventLabel(activeEvent.type);
+      document.getElementById('event-banner-desc').textContent  = `${activeEvent.desc || ''} · Осталось ${h}ч ${m}м`;
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+}
+
+function getEventLabel(type){
+  const labels = {
+    'double_fuel':    '⚡ Двойное топливо активно!',
+    'double_gc':      '💰 Двойные GC с полётов!',
+    'half_risk':      '🛡 Половина риска!',
+    'free_spin':      '🎰 Дополнительный спин!',
+    'meteor_shower':  '☄️ Метеоритный дождь!',
+  };
+  return labels[type] || '🌍 Событие активно!';
+}
+
+// Применяем бонус события к тапу
+const _origDoTap = doTap;
+
 
 // ══════════════════════════════════════════
 //  TOAST + STARS
