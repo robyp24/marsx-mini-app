@@ -31,21 +31,21 @@ const PLANETS = [
 // ── Магазин ──
 const SHOP = {
   boosters:[
-    {id:'fuel_boost',  name:'Топливный буст',    emoji:'⛽',desc:'×2 добыча топлива на 30 мин',         price:200, currency:'gc'},
-    {id:'shield',      name:'Щит',               emoji:'🛡',desc:'Защита от одной потери груза',        price:150, currency:'gc',   stackable:true},
+    {id:'fuel_boost',  name:'Топливный буст',    emoji:'⛽',desc:'×2 добыча топлива на 30 мин',         price:250, currency:'gc'},
+    {id:'shield',      name:'Щит',               emoji:'🛡',desc:'Защита от одной потери груза',        price:180, currency:'gc',   stackable:true},
     {id:'combo_boost', name:'Комбо-усилитель',   emoji:'⚡',desc:'×3 комбо с 3 тапов (1 час)',          price:300, currency:'gc'},
-    {id:'instant_fuel',name:'Мгновенное топливо',emoji:'💧',desc:'Заполняет топливо до 100% сейчас',   price:500, currency:'gc'},
+    {id:'instant_fuel',name:'Мгновенное топливо',emoji:'💧',desc:'Заполняет топливо до 100% сейчас',   price:600, currency:'gc'},
   ],
   parts:[
-    {id:'engine_1',  name:'Двигатель Mk.II',  emoji:'🔧',desc:'+20% скорость полётов, −7% риск',     price:800,  currency:'gc',  unique:true},
-    {id:'engine_2',  name:'Двигатель Mk.III', emoji:'🚀',desc:'+50% скорость, −15% риск',            price:2500, currency:'gc',  unique:true, requires:'engine_1'},
-    {id:'tank_ext',  name:'Доп. бак',         emoji:'🛢',desc:'Лимит топлива 800 → 1200 F',          price:1200, currency:'gc',  unique:true},
+    {id:'engine_1',  name:'Двигатель Mk.II',  emoji:'🔧',desc:'+20% скорость полётов, −7% риск',     price:1200, currency:'gc',  unique:true},
+    {id:'engine_2',  name:'Двигатель Mk.III', emoji:'🚀',desc:'+50% скорость, −15% риск',            price:3500, currency:'gc',  unique:true, requires:'engine_1'},
+    {id:'tank_ext',  name:'Доп. бак',         emoji:'🛢',desc:'Лимит топлива 800 → 1200 F',          price:1800, currency:'gc',  unique:true},
     {id:'scanner',   name:'Сканер',           emoji:'📡',desc:'Вдвое больше объектов в полёте',      price:600,  currency:'gc',  unique:true},
-    {id:'droid',     name:'Майнинг-дроид',    emoji:'🤖',desc:'Авто-тапает реактор раз в 5 сек',    price:1500, currency:'gc',  unique:true},
+    {id:'droid',     name:'Майнинг-дроид',    emoji:'🤖',desc:'Авто-тапает реактор раз в 5 сек',    price:2200, currency:'gc',  unique:true},
   ],
   weapons:[
-    {id:'blaster_1',  name:'Бластер Mk.I',  emoji:'🔫',desc:'+10 F за сбитый объект',                price:400,  currency:'gc', unique:true},
-    {id:'blaster_2',  name:'Бластер Mk.II', emoji:'💥',desc:'+25 F, шанс двойного дропа',            price:1800, currency:'gc', unique:true, requires:'blaster_1'},
+    {id:'blaster_1',  name:'Бластер Mk.I',  emoji:'🔫',desc:'+10 F за сбитый объект',                price:600,  currency:'gc', unique:true},
+    {id:'blaster_2',  name:'Бластер Mk.II', emoji:'💥',desc:'+25 F, шанс двойного дропа',            price:2500, currency:'gc', unique:true, requires:'blaster_1'},
     {id:'emp',        name:'ЭМИ-пушка',     emoji:'⚡',desc:'Уничтожает все объекты на экране',      price:3000, currency:'gc', unique:true},
     {id:'auto_turret',name:'Авто-турель',   emoji:'🎯',desc:'Авто-стреляет по астероидам',           price:5000, currency:'gc', unique:true},
   ],
@@ -54,7 +54,7 @@ const SHOP = {
     {id:'vip_1month', name:'VIP Командор',  emoji:'👑',desc:'+30% добыча, 2 слота полётов, без рекламы. 1 месяц.',price:299, currency:'stars', unique:true},
     {id:'vip_3month', name:'VIP Командор ×3',emoji:'💎',desc:'Всё то же + эксклюзивный корабль. 3 месяца.',price:699, currency:'stars', unique:true},
     {id:'gc_1000',    name:'1 000 GC',      emoji:'💰',desc:'Пак галактических кредитов',             price:99,  currency:'stars'},
-    {id:'gc_5000',    name:'6 000 GC',      emoji:'💎',desc:'Выгодный пак (+20% бонус)',              price:399, currency:'stars'},
+    {id:'gc_5000',    name:'5 500 GC',      emoji:'💎',desc:'Выгодный пак (+10% бонус)',              price:399, currency:'stars'},
     {id:'gc_15000',   name:'20 000 GC',     emoji:'🌟',desc:'Мега-пак (+33% бонус)',                  price:999, currency:'stars'},
   ],
 };
@@ -207,52 +207,135 @@ async function checkAutopilot(){
 }
 
 // ══════════════════════════════════════════
-//  ONBOARDING
+//  ONBOARDING — пошаговый туториал
 // ══════════════════════════════════════════
 const ONBOARDING_STEPS = [
-  {title:'Добро пожаловать в MarsX 🚀', body:'Ты — командор космической базы. Тапай планету чтобы добывать топливо для экспедиций.', btn:'Начать', action:'tap_hint'},
-  {title:'Тапни планету 10 раз ⚡',      body:'Каждый тап добавляет топливо. Combo-тапы дают ×2 и ×3 бонус!',                       btn:'Понятно', action:'show_fuel'},
-  {title:'Запусти первую экспедицию 🌙', body:'Луна — самый безопасный маршрут. Нажми "Запустить экспедицию" и выбери Луну.',        btn:'Лечу!',   action:'open_planets'},
-  {title:'Собери награду 💰',            body:'Корабль вернулся! Ты получил GC и CI. Трать GC в магазине на апгрейды.',              btn:'Отлично!', action:'finish'},
+  {
+    emoji: '🚀',
+    title: 'Добро пожаловать в MarsX!',
+    body:  'Ты — командор межзвёздной базы. Тапай ракету чтобы прогревать двигатели и добывать топливо.',
+    btn:   'Поехали!',
+    action: null,
+    highlight: 'tap-area-wrap',
+  },
+  {
+    emoji: '⚡',
+    title: 'Тапай и комбо',
+    body:  'Быстрые тапы дают комбо ×2 и ×3. Шкала внизу — твоё топливо. Набери 100% для старта!',
+    btn:   'Понял!',
+    action: null,
+    highlight: 'fuel-bar-wrap',
+  },
+  {
+    emoji: '🌙',
+    title: 'Первая экспедиция',
+    body:  'Луна — самый безопасный маршрут. Риск всего 8%. Лети туда чтобы заработать первые GC.',
+    btn:   'Выбрать планету',
+    action: 'open_planets',
+    highlight: null,
+  },
+  {
+    emoji: '⛏',
+    title: 'Майнеры и пассивный доход',
+    body:  'После первого полёта построй майнер на Луне. Он добывает GC пока ты офлайн — это твой пассивный доход.',
+    btn:   'Отлично!',
+    action: null,
+    highlight: null,
+  },
+  {
+    emoji: '🎁',
+    title: 'Стартовый бонус получен!',
+    body:  'Ты готов к покорению галактики. Заходи каждый день за бонусами. Удачных полётов, Командор!',
+    btn:   'Начать игру 🚀',
+    action: 'finish',
+    highlight: null,
+  },
 ];
 
 function startOnboarding(){
-  G.onboardingStep=0;
+  G.onboardingStep = 0;
   showOnboardingStep(0);
 }
 
 function showOnboardingStep(i){
-  const step=ONBOARDING_STEPS[i];
+  const step = ONBOARDING_STEPS[i];
   if(!step) return;
-  const el=document.getElementById('onboarding-modal');
-  document.getElementById('ob-title').textContent=step.title;
-  document.getElementById('ob-body').textContent=step.body;
-  document.getElementById('ob-btn').textContent=step.btn;
-  document.getElementById('ob-dots').innerHTML=ONBOARDING_STEPS.map((_,j)=>
-    `<span style="width:6px;height:6px;border-radius:50%;background:${j===i?'#4f8ef7':'rgba(79,142,247,.3)'}"></span>`
+  const modal = document.getElementById('onboarding-modal');
+
+  document.getElementById('ob-emoji').textContent = step.emoji;
+  document.getElementById('ob-title').textContent = step.title;
+  document.getElementById('ob-body').textContent  = step.body;
+  document.getElementById('ob-btn').textContent   = step.btn;
+  document.getElementById('ob-step').textContent  =
+    `${i+1} / ${ONBOARDING_STEPS.length}`;
+
+  document.getElementById('ob-dots').innerHTML = ONBOARDING_STEPS.map((_,j) =>
+    `<span style="width:${j===i?'18':'6'}px;height:6px;border-radius:3px;background:${j===i?'#4f8ef7':'rgba(79,142,247,.3)'};transition:all .3s"></span>`
   ).join('');
-  el.style.display='flex';
+
+  // Подсветка элемента
+  document.querySelectorAll('.ob-highlight').forEach(el => el.classList.remove('ob-highlight'));
+  if(step.highlight){
+    const el = document.getElementById(step.highlight);
+    if(el) el.classList.add('ob-highlight');
+  }
+
+  modal.style.display = 'flex';
 }
 
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('ob-btn').onclick = async ()=>{
-    const step=ONBOARDING_STEPS[G.onboardingStep];
-    if(step.action==='open_planets') showScreen('planet-screen');
-    if(step.action==='finish'){
-      document.getElementById('onboarding-modal').style.display='none';
-      const res=await apiPost('/complete_onboarding');
-      if(res?.status==='success'){
-        G.gc+=100; G.fuel=Math.min(G.fuelMax,G.fuel+200);
-        showToast('🎁 Стартовый бонус: +100 GC и +200 F!');
-        updateMainUI();
-      }
-      if(!G.dailyClaimedToday) setTimeout(showDailyBonus,1500);
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('ob-btn');
+  if(!btn) return;
+  btn.onclick = async () => {
+    const step = ONBOARDING_STEPS[G.onboardingStep];
+    // Убираем подсветку
+    document.querySelectorAll('.ob-highlight').forEach(el => el.classList.remove('ob-highlight'));
+
+    if(step.action === 'open_planets'){
+      document.getElementById('onboarding-modal').style.display = 'none';
+      showScreen('planet-screen'); renderPlanets();
+      // Ждём возврата на главный — продолжим онбординг
+      G.onboardingStep++;
+      setTimeout(()=>{
+        if(!G.onboardingDone) showOnboardingStep(G.onboardingStep);
+      }, 8000);
       return;
     }
+
+    if(step.action === 'finish'){
+      document.getElementById('onboarding-modal').style.display = 'none';
+      const res = await apiPost('/complete_onboarding');
+      if(res?.status === 'success'){
+        G.gc   += 100;
+        G.fuel  = Math.min(G.fuelMax, G.fuel + 200);
+        G.onboardingDone = true;
+        // Красивый финальный тост
+        setTimeout(()=>showToast('🎁 +100 GC и +200 F стартового бонуса!'), 300);
+        updateMainUI();
+      }
+      if(!G.dailyClaimedToday) setTimeout(showDailyBonus, 1800);
+      return;
+    }
+
     G.onboardingStep++;
-    if(G.onboardingStep<ONBOARDING_STEPS.length) showOnboardingStep(G.onboardingStep);
-    else document.getElementById('onboarding-modal').style.display='none';
+    if(G.onboardingStep < ONBOARDING_STEPS.length){
+      showOnboardingStep(G.onboardingStep);
+    } else {
+      document.getElementById('onboarding-modal').style.display = 'none';
+    }
   };
+
+  // Пропустить онбординг
+  const skipBtn = document.getElementById('ob-skip');
+  if(skipBtn){
+    skipBtn.onclick = async () => {
+      document.getElementById('onboarding-modal').style.display = 'none';
+      document.querySelectorAll('.ob-highlight').forEach(el => el.classList.remove('ob-highlight'));
+      await apiPost('/complete_onboarding');
+      G.onboardingDone = true;
+      if(!G.dailyClaimedToday) setTimeout(showDailyBonus, 500);
+    };
+  }
 });
 
 // ══════════════════════════════════════════
@@ -1001,6 +1084,10 @@ async function finalizeFlight(planet){
   updateMainUI();renderPlanets();
   await apiPost('/finalize_flight',{success,planet_key:planet.key,bonus_fuel:G.bonusObjCount*5});
   await apiPost('/report_asteroids',{count:G.bonusObjCount});
+  if(success){
+    const xpAmount = planet.ci * 2;
+    await apiPost('/bp_add_xp',{amount:xpAmount});
+  }
 }
 
 // ══════════════════════════════════════════
@@ -1866,6 +1953,128 @@ async function equipSkin(key){
     showSkins();
   } else showToast(res?.message||'Ошибка');
 }
+
+// ══════════════════════════════════════════
+//  BATTLE PASS
+// ══════════════════════════════════════════
+async function showBP(){
+  document.getElementById('more-menu').style.display='none';
+  showScreen('bp-screen');
+  renderBP();
+}
+
+async function renderBP(){
+  const content = document.getElementById('bp-content');
+  content.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">Загрузка...</div>';
+  const res = await apiGet('/bp_status');
+  content.innerHTML='';
+  if(!res||res.status!=='success'){
+    content.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">Battle Pass не активен.<br>Администратор запустит следующий сезон.</div>';
+    return;
+  }
+  const d = res.data;
+  // Таймер
+  const tl=d.time_left, days=Math.floor(tl/86400), hours=Math.floor((tl%86400)/3600);
+  document.getElementById('bp-timer').textContent=`⏱ ${days}д ${hours}ч`;
+  // XP прогресс
+  const xpPct = Math.min(100, (d.xp / d.xp_next) * 100);
+  const hero = document.createElement('div');
+  hero.className='bp-hero';
+  hero.innerHTML=`
+    <div style="font-size:13px;font-weight:700;color:var(--accent2);margin-bottom:2px">${d.season_name}</div>
+    <div style="font-size:32px;font-weight:900;color:#fff;margin:6px 0">Уровень ${d.level}</div>
+    <div class="bp-xp-bar"><div class="bp-xp-fill" style="width:${xpPct}%"></div></div>
+    <div style="font-size:11px;color:var(--muted)">${d.xp} / ${d.xp_next} XP до следующего уровня</div>
+    <div style="margin-top:6px;font-size:12px;color:${d.premium?'#f5c518':'var(--muted)'}">
+      ${d.premium?'👑 Premium активен':'🔒 Бесплатная версия'}
+    </div>
+    ${!d.premium?`<button class="bp-buy-btn" onclick="buyBP('${d.season_id}')">
+      👑 Купить Premium — ⭐ ${d.bp_price_stars} Stars
+    </button>`:''}`;
+  content.appendChild(hero);
+
+  // XP подсказка
+  const xpHint = document.createElement('div');
+  xpHint.style.cssText='font-size:11px;color:var(--muted);text-align:center;margin-bottom:12px';
+  xpHint.textContent='XP получаешь за успешные полёты, квесты и ежедневные заходы';
+  content.appendChild(xpHint);
+
+  // Бесплатные награды
+  const freeTitle = document.createElement('div');
+  freeTitle.className='bp-section-title';
+  freeTitle.innerHTML='⚪ Бесплатные награды';
+  content.appendChild(freeTitle);
+  content.appendChild(buildRewardsRow(d.free_rewards, 'free', d.season_id));
+
+  // Разделитель
+  const sep = document.createElement('div');
+  sep.style.cssText='height:0.5px;background:rgba(245,197,24,.3);margin:12px 0';
+  content.appendChild(sep);
+
+  // Премиум награды
+  const premTitle = document.createElement('div');
+  premTitle.className='bp-section-title';
+  premTitle.innerHTML=`👑 <span style="color:var(--gold)">Premium награды</span>${!d.premium?' <span style="font-size:10px;background:rgba(245,197,24,.15);color:var(--gold);padding:2px 8px;border-radius:10px">🔒 Нужен Premium</span>':''}`;
+  content.appendChild(premTitle);
+  content.appendChild(buildRewardsRow(d.premium_rewards, 'premium', d.season_id));
+}
+
+function buildRewardsRow(rewards, type, seasonId){
+  const row = document.createElement('div');
+  row.className='bp-rewards-row';
+  rewards.forEach(r => {
+    const cell = document.createElement('div');
+    let cls = 'bp-reward-cell';
+    if(type==='premium') cls += ' premium-cell';
+    if(r.claimed)    cls += ' claimed';
+    else if(r.locked) cls += ' locked';
+    else if(r.available) cls += ' available';
+    cell.className = cls;
+    cell.innerHTML = `
+      <div class="bp-level-num">Ур.${r.level}</div>
+      <div class="bp-reward-icon">${r.icon}</div>
+      <div class="bp-reward-label">${r.label}</div>
+      ${r.claimed?'<div class="bp-claimed-badge">✅</div>':''}`;
+    if(r.available && !r.claimed){
+      cell.onclick = ()=>claimBP(r.level, type, seasonId);
+      cell.title = 'Нажми чтобы получить!';
+    }
+    row.appendChild(cell);
+  });
+  return row;
+}
+
+async function buyBP(seasonId){
+  const res = await apiPost('/bp_buy_premium');
+  if(res?.status==='success'){
+    showToast('👑 Premium Battle Pass активирован!');
+    if(window.Telegram?.WebApp?.HapticFeedback)
+      Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+    renderBP();
+  } else {
+    showToast(res?.message||'Ошибка покупки');
+  }
+}
+
+async function claimBP(level, rewardType, seasonId){
+  const res = await apiPost('/bp_claim',{level, reward_type: rewardType, season_id: seasonId});
+  if(res?.status==='success'){
+    const r = res.data?.reward;
+    showToast(`🎁 Получено: ${r?.label||'Награда'}`);
+    if(window.Telegram?.WebApp?.HapticFeedback)
+      Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+    // Применяем локально
+    if(r?.type==='gc') G.gc += r.value;
+    else if(r?.type==='fuel') G.fuel = Math.min(G.fuelMax, G.fuel + r.value);
+    updateMainUI();
+    renderBP();
+  } else {
+    showToast(res?.message||'Ошибка');
+  }
+}
+
+// Добавляем XP после успешного полёта
+const _origFinalizeFlight = finalizeFlight;
 
 // ══════════════════════════════════════════
 //  TOAST + STARS
