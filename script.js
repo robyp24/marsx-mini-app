@@ -354,13 +354,27 @@ function initTapCanvas() {
   if(!c){ console.error('tap-canvas not found'); return; }
   tapCtx = c.getContext('2d');
   function resize(){
-    const parent = c.parentElement;
-    const s = Math.min(Math.max(parent ? parent.offsetWidth : 260, 200), 320);
-    c.width=s; c.height=s;
-    c.style.width=s+'px'; c.style.height=s+'px';
-    rocketStars=null;
+    // Полная ширина и высота tap-area на телефоне
+    const vw = window.innerWidth  || 375;
+    const vh = window.innerHeight || 667;
+    // Высота = всё что между stats и кнопкой запуска
+    const statsH    = 100;  // stats-row примерно
+    const bottomH   = 140;  // fuel-bar + launch-btn + nav
+    const topBarH   = 72;
+    const W = vw;
+    const H = Math.max(vh - statsH - bottomH - topBarH, 200);
+    c.width  = W;
+    c.height = H;
+    c.style.width  = W + "px";
+    c.style.height = H + "px";
+    rocketStars = null;
   }
-  resize(); setTimeout(resize,100); setTimeout(resize,500);
+  // Запускаем resize несколько раз — flex-контейнер разворачивается не сразу
+  resize();
+  setTimeout(resize, 50);
+  setTimeout(resize, 200);
+  setTimeout(resize, 600);
+  window.addEventListener('resize', resize);
   window.addEventListener('resize', resize);
   c.addEventListener('click', e => onTap(e));
   c.addEventListener('touchstart', e=>{ e.preventDefault(); onTap(e.touches[0]); },{passive:false});
@@ -1240,7 +1254,7 @@ function drawSpinWheel(angle){
   const slice = (Math.PI*2) / n;
 
   spinRewards.forEach((reward, i) => {
-    const start = angle + i * slice;
+    const start = angle + i * slice - Math.PI/2;  // 0й сектор начинается сверху
     const end   = start + slice;
     // Сектор
     ctx.beginPath();
@@ -1290,14 +1304,36 @@ async function doSpin(){
     return;
   }
 
-  const reward     = res.data.reward;
-  const resultIdx  = res.data.result_idx;
-  const n          = spinRewards.length;
-  const slice      = (Math.PI*2) / n;
-  // Целевой угол — чтобы нужный сектор оказался под стрелкой (top = -PI/2)
-  const targetAngle = -(Math.PI/2) - (resultIdx * slice + slice/2);
-  const spins      = Math.PI * 2 * (5 + Math.random()*3); // 5-8 оборотов
-  const finalAngle = targetAngle - spins;
+  // Парсим ответ — может быть res.data.reward или res.reward
+  const spinData  = res.data || res;
+  const reward    = spinData.reward;
+  const resultIdx = spinData.result_idx ?? 0;
+  console.log('[spin] full res:', JSON.stringify(res).slice(0,200));
+  console.log('[spin] reward:', reward?.label, 'value:', reward?.value, 'idx:', resultIdx);
+  if(!reward){ showToast('Ошибка: нет данных награды'); spinAnimating=false; return; }
+
+  // Если spinRewards пуст — загружаем и ждём
+  if(!spinRewards.length){
+    const si = await apiGet('/spin_info');
+    if(si?.status==='success') spinRewards = si.data.rewards;
+  }
+
+  const n = spinRewards.length || 10;
+  const slice = (Math.PI*2) / n;
+
+  // Целевой угол: нужный сектор под стрелкой (стрелка сверху = -PI/2)
+  // Колесо крутится, стрелка фиксирована сверху
+  // Сектор resultIdx начинается с угла (resultIdx * slice)
+  // Центр сектора: resultIdx * slice + slice/2
+  // Хотим чтобы центр сектора оказался сверху (-PI/2)
+  // Стрелка сверху (12 часов). Колесо рисуется от angle - PI/2.
+  // Чтобы сектор resultIdx оказался сверху:
+  // angle - PI/2 + resultIdx*slice + slice/2 = -PI/2 (сверху = 0 на экране)
+  // angle = -resultIdx*slice - slice/2
+  const sectorCenter = resultIdx * slice + slice / 2;
+  const fullSpins    = Math.PI * 2 * (6 + Math.floor(Math.random()*4));
+  const finalAngle   = -(sectorCenter) - fullSpins;
+  console.log('[spin] finalAngle:', finalAngle.toFixed(2), 'sectorCenter:', sectorCenter.toFixed(2));
 
   const start    = spinAngle;
   const duration = 4000;
@@ -1329,8 +1365,6 @@ async function doSpin(){
   }
   requestAnimationFrame(animate);
 
-  // Применяем награду на сервере (уже сохранено в /spin)
-  G.gc = G.gc; // просто обновим UI
 }
 
 // ══════════════════════════════════════════
