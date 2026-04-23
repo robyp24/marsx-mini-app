@@ -89,16 +89,27 @@ function onTap(e){
     const scale = c.width / rect.width;
     const lx = (e.clientX - rect.left) * scale;
     const ly = (e.clientY - rect.top) * scale;
-    const colors = ['79,142,247','124,92,252','245,197,24','100,180,255','180,150,255'];
-    for(let i=0;i<14;i++){
-      const a=Math.random()*Math.PI*2, sp=2+Math.random()*5;
-      TAP_P.push({x:lx,y:ly,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,r:2+Math.random()*3.5,life:1,c:colors[Math.floor(Math.random()*colors.length)]});
+    // Частицы под цвет скина
+    const skinKey = (currentSkinColors&&currentSkinColors._skin)||'default';
+    const colorMap = {
+      default:['79,142,247','124,92,252','245,197,24','100,180,255'],
+      gold:   ['245,197,24','255,160,30','255,220,80','200,140,0'],
+      stealth:['0,255,100','0,200,80','100,255,150','0,150,60'],
+      fire:   ['255,100,0','231,76,60','255,180,50','200,50,0'],
+      galaxy: ['180,150,255','124,92,252','200,170,255','80,40,200'],
+      neptune:['100,220,255','150,240,255','200,240,255','50,180,220'],
+    };
+    const colors = colorMap[skinKey]||colorMap.default;
+    for(let i=0;i<16;i++){
+      const a=Math.random()*Math.PI*2, sp=2.5+Math.random()*5.5;
+      TAP_P.push({x:lx,y:ly,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2.5,r:2+Math.random()*4,life:1,c:colors[Math.floor(Math.random()*colors.length)]});
     }
   }
   doTap(e);
 }
 
 window.onload = () => {
+  initSplash();
   createStarsBg();
   initTapCanvas();
   initTelegram();
@@ -432,422 +443,486 @@ function updateTapPlanet(planetKey) {
   tapCurrentPlanet = planetKey || 'earth';
 }
 
-function initTapCanvas() {
-  const c = document.getElementById('tap-canvas');
-  if(!c){ console.error('tap-canvas not found'); return; }
-  tapCtx = c.getContext('2d');
-  function resize(){
-    // Полная ширина и высота tap-area на телефоне
-    const vw = window.innerWidth  || 375;
-    const vh = window.innerHeight || 667;
-    // Высота = всё что между stats и кнопкой запуска
-    const statsH    = 100;  // stats-row примерно
-    const bottomH   = 140;  // fuel-bar + launch-btn + nav
-    const topBarH   = 72;
-    const W = vw;
-    const H = Math.max(vh - statsH - bottomH - topBarH, 200);
-    c.width  = W;
-    c.height = H;
-    c.style.width  = W + "px";
-    c.style.height = H + "px";
-    rocketStars = null;
+// ══════════════════════════════════════════
+//  THREE.JS 3D ROCKET
+// ══════════════════════════════════════════
+
+// Three.js загружается динамически
+let THREE = null;
+let tapRenderer = null, tapScene = null, tapCamera = null;
+let rocketGroup = null, engLight = null;
+let exhaustParticles = [];
+let tapFrame3d = 0;
+let isDragging = false, prevTouchX = 0, prevTouchY = 0;
+let rotY = 0, rotX = 0.1, targetRotY = 0, targetRotX = 0.1;
+let autoRotate = true;
+let rocketMeshes = {};
+
+const PLANET_ENV_COLORS = {
+  earth:   { bg: 0x07091a, fog: 0x07091a, light: 0x4488ff, ground: 0x1a2540 },
+  moon:    { bg: 0x080810, fog: 0x080810, light: 0xaaaacc, ground: 0x1a1a28 },
+  mars:    { bg: 0x120500, fog: 0x120500, light: 0xe05020, ground: 0x3a1008 },
+  jupiter: { bg: 0x0a0500, fog: 0x0a0500, light: 0xe8a040, ground: 0x2a1800 },
+  saturn:  { bg: 0x0a0800, fog: 0x0a0800, light: 0xd4b060, ground: 0x281a00 },
+  neptune: { bg: 0x000a18, fog: 0x000a18, light: 0x2a80ff, ground: 0x000f28 },
+  alpha:   { bg: 0x08001a, fog: 0x08001a, light: 0x9060ff, ground: 0x150030 },
+};
+
+function updateTapPlanet(planetKey) {
+  tapCurrentPlanet = planetKey || 'earth';
+  if (tapScene) {
+    const env = PLANET_ENV_COLORS[tapCurrentPlanet] || PLANET_ENV_COLORS.earth;
+    tapScene.background = new THREE.Color(env.bg);
+    tapScene.fog = new THREE.FogExp2(env.fog, 0.05);
+    if (engLight) engLight.color = new THREE.Color(env.light);
   }
-  // Запускаем resize несколько раз — flex-контейнер разворачивается не сразу
-  resize();
-  setTimeout(resize, 50);
-  setTimeout(resize, 200);
-  setTimeout(resize, 600);
-  window.addEventListener('resize', resize);
-  window.addEventListener('resize', resize);
+}
+
+function initTapCanvas() {
+  // Загружаем Three.js динамически
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+  script.onload = () => {
+    THREE = window.THREE;
+    initThreeScene();
+  };
+  script.onerror = () => {
+    console.warn('[3D] Three.js не загрузился — fallback на 2D');
+    init2DFallback();
+  };
+  document.head.appendChild(script);
+}
+
+function init2DFallback() {
+  // Простой 2D canvas как запасной вариант
+  const c = document.getElementById('tap-canvas');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const area = document.getElementById('tap-area-wrap') || c.parentElement;
+  const W = Math.max(area ? area.offsetWidth : 300, 200);
+  const H = Math.max(area ? area.offsetHeight : 260, 200);
+  c.width = W; c.height = H;
+  c.style.width = W + 'px'; c.style.height = H + 'px';
   c.addEventListener('click', e => onTap(e));
-  c.addEventListener('touchstart', e=>{ e.preventDefault(); onTap(e.touches[0]); },{passive:false});
+  c.addEventListener('touchstart', e => { e.preventDefault(); onTap(e.touches[0]); }, { passive: false });
+  function draw2D() {
+    tapFrame++;
+    if (tapHeat > 0) tapHeat = Math.max(0, tapHeat - 0.4);
+    ctx.fillStyle = '#07091a'; ctx.fillRect(0, 0, W, H);
+    const cx = W / 2, cy = H * 0.5;
+    // Simple rocket shape
+    ctx.fillStyle = '#c8d8ec';
+    ctx.beginPath(); ctx.moveTo(cx, cy - 70); ctx.lineTo(cx + 14, cy + 30); ctx.lineTo(cx + 14, cy + 80); ctx.lineTo(cx - 14, cy + 80); ctx.lineTo(cx - 14, cy + 30); ctx.closePath(); ctx.fill();
+    // Flame
+    if (tapHeat > 5) {
+      const fl = 20 + tapHeat * 0.8 + Math.sin(tapFrame * 0.3) * 5;
+      const fg = ctx.createLinearGradient(cx, cy + 80, cx, cy + 80 + fl);
+      fg.addColorStop(0, 'rgba(150,180,255,.9)'); fg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.beginPath(); ctx.moveTo(cx - 8, cy + 80); ctx.lineTo(cx, cy + 80 + fl); ctx.lineTo(cx + 8, cy + 80); ctx.fillStyle = fg; ctx.fill();
+    }
+    // Heat bar
+    ctx.fillStyle = 'rgba(255,255,255,.06)'; ctx.fillRect(14, H - 12, W - 28, 5);
+    if (tapHeat > 0) { ctx.fillStyle = '#4f8ef7'; ctx.fillRect(14, H - 12, (W - 28) * (tapHeat / 100), 5); }
+    ctx.fillStyle = 'rgba(107,125,179,.7)'; ctx.font = '10px -apple-system'; ctx.textAlign = 'center';
+    ctx.fillText(tapHeat > 85 ? '🔥 Готово!' : 'Тапай — прогревай', W / 2, H - 15);
+    requestAnimationFrame(draw2D);
+  }
+  draw2D();
+}
+
+function initThreeScene() {
+  const container = document.getElementById('tap-area-wrap') || document.body;
+  const W = container.offsetWidth || window.innerWidth;
+  const H = container.offsetHeight || Math.floor(window.innerHeight * 0.45);
+
+  // Canvas
+  const c = document.getElementById('tap-canvas');
+  c.width = W; c.height = H;
+  c.style.width = W + 'px'; c.style.height = H + 'px';
+
+  // Renderer
+  tapRenderer = new THREE.WebGLRenderer({ canvas: c, antialias: true, alpha: false });
+  tapRenderer.setSize(W, H);
+  tapRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  tapRenderer.shadowMap.enabled = true;
+  tapRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  tapRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  tapRenderer.toneMappingExposure = 1.3;
+
+  // Scene
+  tapScene = new THREE.Scene();
+  const env = PLANET_ENV_COLORS[tapCurrentPlanet] || PLANET_ENV_COLORS.earth;
+  tapScene.background = new THREE.Color(env.bg);
+  tapScene.fog = new THREE.FogExp2(env.fog, 0.04);
+
+  // Camera
+  tapCamera = new THREE.PerspectiveCamera(42, W / H, 0.1, 100);
+  tapCamera.position.set(0, 0.5, 7.5);
+  tapCamera.lookAt(0, 0.5, 0);
+
+  // Lights
+  const ambient = new THREE.AmbientLight(0x334466, 0.9); tapScene.add(ambient);
+  const sun = new THREE.DirectionalLight(0x88aaff, 2.5);
+  sun.position.set(4, 6, 3); sun.castShadow = true;
+  sun.shadow.mapSize.width = 1024; sun.shadow.mapSize.height = 1024;
+  tapScene.add(sun);
+  const fill = new THREE.DirectionalLight(0x334488, 0.6);
+  fill.position.set(-3, 2, -2); tapScene.add(fill);
+  const rim = new THREE.DirectionalLight(0x8899ff, 1.4);
+  rim.position.set(0, -3, -4); tapScene.add(rim);
+  engLight = new THREE.PointLight(new THREE.Color(env.light), 0, 4);
+  engLight.position.set(0, -2.5, 0); tapScene.add(engLight);
+
+  // Stars
+  const sg = new THREE.BufferGeometry();
+  const sv = [];
+  for (let i = 0; i < 1500; i++) sv.push((Math.random() - 0.5) * 60, (Math.random() - 0.5) * 60, (Math.random() - 0.5) * 60);
+  sg.setAttribute('position', new THREE.Float32BufferAttribute(sv, 3));
+  tapScene.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 0.04, sizeAttenuation: true })));
+
+  // Platform
+  const platGeo = new THREE.CylinderGeometry(1.4, 1.7, 0.12, 32);
+  const platMat = new THREE.MeshStandardMaterial({ color: 0x1a2540, metalness: 0.7, roughness: 0.35 });
+  const plat = new THREE.Mesh(platGeo, platMat);
+  plat.position.y = -2.8; plat.receiveShadow = true;
+  tapScene.add(plat);
+  // Platform ring lights
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const lm = new THREE.MeshStandardMaterial({ color: 0x4488ff, emissive: 0x2244ff, emissiveIntensity: 2 });
+    const lg = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), lm);
+    lg.position.set(Math.cos(a) * 1.2, -2.74, Math.sin(a) * 1.2);
+    tapScene.add(lg);
+  }
+  // Support legs
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const lm = new THREE.MeshStandardMaterial({ color: 0x2a3a5a, metalness: 0.8, roughness: 0.3 });
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 1.4, 8), lm);
+    leg.position.set(Math.cos(a) * 0.75, -2.2, Math.sin(a) * 0.75);
+    leg.rotation.z = Math.cos(a) * 0.28; leg.rotation.x = Math.sin(a) * 0.28;
+    tapScene.add(leg);
+  }
+
+  // Rocket group
+  rocketGroup = new THREE.Group();
+  tapScene.add(rocketGroup);
+  buildRocket3D(G.inventory || {});
+
+  // Events
+  c.addEventListener('click', e => { onTap(e); autoRotate = false; });
+  c.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    isDragging = false; prevTouchX = t.clientX; prevTouchY = t.clientY;
+    onTap(t); autoRotate = false;
+  }, { passive: false });
+  c.addEventListener('touchmove', e => {
+    e.preventDefault();
+    isDragging = true;
+    targetRotY += (e.touches[0].clientX - prevTouchX) * 0.009;
+    targetRotX += (e.touches[0].clientY - prevTouchY) * 0.006;
+    targetRotX = Math.max(-0.55, Math.min(0.55, targetRotX));
+    prevTouchX = e.touches[0].clientX; prevTouchY = e.touches[0].clientY;
+  }, { passive: false });
+  c.addEventListener('mousedown', e => { isDragging = false; prevTouchX = e.clientX; prevTouchY = e.clientY; });
+  c.addEventListener('mousemove', e => {
+    if (e.buttons !== 1) return;
+    isDragging = true;
+    targetRotY += (e.clientX - prevTouchX) * 0.007;
+    targetRotX += (e.clientY - prevTouchY) * 0.005;
+    targetRotX = Math.max(-0.55, Math.min(0.55, targetRotX));
+    prevTouchX = e.clientX; prevTouchY = e.clientY;
+    autoRotate = false;
+  });
+
+  // Resize
+  window.addEventListener('resize', () => {
+    const nW = container.offsetWidth || window.innerWidth;
+    const nH = container.offsetHeight || Math.floor(window.innerHeight * 0.45);
+    tapCamera.aspect = nW / nH; tapCamera.updateProjectionMatrix();
+    tapRenderer.setSize(nW, nH);
+    c.style.width = nW + 'px'; c.style.height = nH + 'px';
+  });
+
   animateTap();
 }
 
-// ── 6 уникальных ракет ──
-const ROCKET_SKINS_DRAW = {
+function buildRocket3D(inv) {
+  if (!rocketGroup || !THREE) return;
+  while (rocketGroup.children.length) rocketGroup.remove(rocketGroup.children[0]);
+  rocketMeshes = {};
+  exhaustParticles = [];
 
-  // 1. Стандартная — классика MarsX
-  default(ctx, cx, cy, f, heat, sc) {
-    ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
-    // Корпус
-    ctx.beginPath();
-    ctx.moveTo(0,-68); ctx.lineTo(13,40); ctx.lineTo(13,90); ctx.lineTo(-13,90); ctx.lineTo(-13,40);
-    ctx.closePath();
-    const bg = ctx.createLinearGradient(-13,0,13,0);
-    bg.addColorStop(0,'#8aaac8'); bg.addColorStop(.22,'#c8ddf0');
-    bg.addColorStop(.5,'#eef8ff'); bg.addColorStop(.78,'#b8d0e8'); bg.addColorStop(1,'#6888a0');
-    ctx.fillStyle=bg; ctx.fill(); ctx.strokeStyle='#7090ae'; ctx.lineWidth=.8; ctx.stroke();
-    // Нос
-    ctx.beginPath(); ctx.moveTo(0,-68); ctx.lineTo(13,40); ctx.lineTo(-13,40); ctx.closePath();
-    const ng=ctx.createLinearGradient(-13,0,13,0);
-    ng.addColorStop(0,'#a0c0d8'); ng.addColorStop(.45,'#e0f2ff'); ng.addColorStop(1,'#88a8c0');
-    ctx.fillStyle=ng; ctx.fill(); ctx.strokeStyle='#7090ae'; ctx.lineWidth=.8; ctx.stroke();
-    ctx.beginPath(); ctx.arc(0,-68,3.5,0,Math.PI*2); ctx.fillStyle='#c0d8f0'; ctx.fill();
-    // Иллюминатор
-    const wg=ctx.createRadialGradient(-2,-14,1,0,-12,10);
-    wg.addColorStop(0,'rgba(200,240,255,.95)'); wg.addColorStop(.4,'rgba(100,180,255,.8)'); wg.addColorStop(1,'rgba(40,100,180,.6)');
-    ctx.beginPath(); ctx.ellipse(0,-12,8,11,0,0,Math.PI*2); ctx.fillStyle=wg; ctx.fill();
-    ctx.strokeStyle='rgba(180,220,255,.6)'; ctx.lineWidth=1; ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(-2.5,-17,3,4,-.4,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,.25)'; ctx.fill();
-    // Полосы и логотип
-    ctx.strokeStyle='rgba(79,142,247,.35)'; ctx.lineWidth=1.5;
-    ctx.beginPath(); ctx.moveTo(-12,18); ctx.lineTo(12,18); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-12,50); ctx.lineTo(12,50); ctx.stroke();
-    ctx.fillStyle='rgba(79,142,247,.2)'; ctx.fillRect(-12,25,24,18);
-    ctx.fillStyle='rgba(140,190,255,.85)'; ctx.font='bold 7px -apple-system'; ctx.textAlign='center';
-    ctx.fillText('MarsX',0,37);
-    // Крылья
-    ctx.beginPath(); ctx.moveTo(-13,52); ctx.lineTo(-30,80); ctx.lineTo(-30,90); ctx.lineTo(-13,86); ctx.closePath();
-    const lf=ctx.createLinearGradient(-30,0,-13,0); lf.addColorStop(0,'#4a6080'); lf.addColorStop(1,'#8aaac8');
-    ctx.fillStyle=lf; ctx.fill(); ctx.strokeStyle='#4a6080'; ctx.lineWidth=.7; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(13,52); ctx.lineTo(30,80); ctx.lineTo(30,90); ctx.lineTo(13,86); ctx.closePath();
-    const rf=ctx.createLinearGradient(13,0,30,0); rf.addColorStop(0,'#8aaac8'); rf.addColorStop(1,'#4a6080');
-    ctx.fillStyle=rf; ctx.fill(); ctx.strokeStyle='#4a6080'; ctx.lineWidth=.7; ctx.stroke();
-    // Сопла
-    for(let e=0;e<3;e++){
-      const ex=-11+e*11;
-      ctx.beginPath(); ctx.moveTo(ex-5,86); ctx.lineTo(ex-6,95); ctx.lineTo(ex+6,95); ctx.lineTo(ex+5,86);
-      ctx.closePath(); ctx.fillStyle='#3a4a60'; ctx.fill();
-      if(heat>8){ const ng2=ctx.createRadialGradient(ex,90,0,ex,90,7); ng2.addColorStop(0,`rgba(100,150,255,${heat/150})`); ng2.addColorStop(1,'rgba(0,0,0,0)'); ctx.beginPath(); ctx.arc(ex,92,7,0,Math.PI*2); ctx.fillStyle=ng2; ctx.fill(); }
-    }
-    ctx.restore();
-  },
+  const hasE1 = inv.engine_1 || inv.engine_2;
+  const hasE2 = inv.engine_2;
+  const hasTank = inv.tank_ext;
+  const hasB1 = inv.blaster_1 || inv.blaster_2;
+  const hasB2 = inv.blaster_2;
+  const hasScan = inv.scanner;
+  const hasTurret = inv.auto_turret;
+  const hasDroid = inv.droid;
 
-  // 2. Золотая — широкая, с гравировкой
-  gold(ctx, cx, cy, f, heat, sc) {
-    ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
-    ctx.beginPath();
-    ctx.moveTo(0,-65); ctx.lineTo(15,42); ctx.lineTo(16,90); ctx.lineTo(-16,90); ctx.lineTo(-15,42);
-    ctx.closePath();
-    const bg=ctx.createLinearGradient(-16,0,16,0);
-    bg.addColorStop(0,'#c4820a'); bg.addColorStop(.25,'#f5c518'); bg.addColorStop(.5,'#ffe566'); bg.addColorStop(.75,'#e8a020'); bg.addColorStop(1,'#a06000');
-    ctx.fillStyle=bg; ctx.fill(); ctx.strokeStyle='rgba(255,220,80,.5)'; ctx.lineWidth=1; ctx.stroke();
-    // Нос с градиентом
-    ctx.beginPath(); ctx.moveTo(0,-65); ctx.lineTo(15,42); ctx.lineTo(-15,42); ctx.closePath();
-    const ng=ctx.createLinearGradient(-15,0,15,0);
-    ng.addColorStop(0,'#e8a020'); ng.addColorStop(.5,'#fff8c0'); ng.addColorStop(1,'#c47000');
-    ctx.fillStyle=ng; ctx.fill(); ctx.strokeStyle='rgba(255,220,80,.4)'; ctx.lineWidth=1; ctx.stroke();
-    ctx.beginPath(); ctx.arc(0,-65,4,0,Math.PI*2); ctx.fillStyle='#ffe566'; ctx.fill();
-    // Гравировка
-    ctx.strokeStyle='rgba(160,100,0,.5)'; ctx.lineWidth=1;
-    for(let i=0;i<3;i++){ ctx.beginPath(); ctx.moveTo(-13,5+i*22); ctx.lineTo(13,5+i*22); ctx.stroke(); }
-    // Орнамент
-    ctx.fillStyle='rgba(180,120,0,.4)';
-    ctx.beginPath(); ctx.arc(-6,20,3,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(6,20,3,0,Math.PI*2); ctx.fill();
-    // Иллюминатор золотой
-    ctx.beginPath(); ctx.ellipse(0,-14,7,10,0,0,Math.PI*2);
-    ctx.fillStyle='rgba(255,200,50,.75)'; ctx.fill();
-    ctx.strokeStyle='rgba(255,240,100,.7)'; ctx.lineWidth=1; ctx.stroke();
-    // Широкие крылья
-    ctx.beginPath(); ctx.moveTo(-15,50); ctx.lineTo(-38,82); ctx.lineTo(-32,90); ctx.lineTo(-15,88); ctx.closePath();
-    ctx.fillStyle='#c4820a'; ctx.fill(); ctx.strokeStyle='rgba(255,200,50,.4)'; ctx.lineWidth=1; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(15,50); ctx.lineTo(38,82); ctx.lineTo(32,90); ctx.lineTo(15,88); ctx.closePath();
-    ctx.fillStyle='#c4820a'; ctx.fill(); ctx.stroke();
-    // Оранжевые сопла
-    for(let e=0;e<3;e++){
-      const ex=-11+e*11;
-      const fl=10+heat*.5+Math.sin(f*.3+e)*4;
-      const fg=ctx.createLinearGradient(ex,90,ex,90+fl);
-      fg.addColorStop(0,'rgba(255,160,30,.95)'); fg.addColorStop(.5,'rgba(255,100,0,.6)'); fg.addColorStop(1,'rgba(0,0,0,0)');
-      if(heat>5){ ctx.beginPath(); ctx.moveTo(ex-5,90); ctx.lineTo(ex,90+fl); ctx.lineTo(ex+5,90); ctx.fillStyle=fg; ctx.fill(); }
-      ctx.beginPath(); ctx.moveTo(ex-5,86); ctx.lineTo(ex-6,95); ctx.lineTo(ex+6,95); ctx.lineTo(ex+5,86);
-      ctx.closePath(); ctx.fillStyle='#8a5000'; ctx.fill();
-    }
-    ctx.restore();
-  },
+  const bW = hasTank ? 0.56 : 0.44;
+  const bH = 3.0 + (hasTank ? 0.2 : 0) + (hasE2 ? 0.25 : 0);
 
-  // 3. Стелс — угловатая, неоновый контур
-  stealth(ctx, cx, cy, f, heat, sc) {
-    ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
-    const neon = 0.5+Math.sin(f*.07)*0.3;
-    // Угловатый корпус
-    ctx.beginPath();
-    ctx.moveTo(0,-72); ctx.lineTo(8,0); ctx.lineTo(14,90); ctx.lineTo(-14,90); ctx.lineTo(-8,0);
-    ctx.closePath();
-    ctx.fillStyle='#111120'; ctx.fill();
-    ctx.strokeStyle=`rgba(0,255,100,${neon})`; ctx.lineWidth=1.2; ctx.stroke();
-    // Нос острый
-    ctx.beginPath(); ctx.moveTo(0,-72); ctx.lineTo(8,0); ctx.lineTo(-8,0); ctx.closePath();
-    ctx.fillStyle='#1e1e30'; ctx.fill(); ctx.strokeStyle=`rgba(0,255,100,${neon})`; ctx.lineWidth=1; ctx.stroke();
-    // Неоновые полосы пульсирующие
-    for(let i=0;i<4;i++){
-      const a=0.3+Math.sin(f*.06+i*.8)*0.25;
-      ctx.strokeStyle=`rgba(0,255,100,${a})`; ctx.lineWidth=1.5;
-      ctx.beginPath(); ctx.moveTo(-7+i*2,8+i*18); ctx.lineTo(7-i*2,8+i*18); ctx.stroke();
-    }
-    // Зелёный иллюминатор
-    ctx.beginPath(); ctx.ellipse(0,-20,5,7,0,0,Math.PI*2);
-    ctx.fillStyle=`rgba(0,255,100,${neon})`; ctx.fill();
-    ctx.strokeStyle=`rgba(150,255,150,${neon})`; ctx.lineWidth=1; ctx.stroke();
-    // Угловые крылья
-    ctx.beginPath(); ctx.moveTo(-14,52); ctx.lineTo(-36,90); ctx.lineTo(-14,90); ctx.closePath();
-    ctx.fillStyle='#0a0a18'; ctx.fill(); ctx.strokeStyle=`rgba(0,255,100,${neon*.7})`; ctx.lineWidth=1; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(14,52); ctx.lineTo(36,90); ctx.lineTo(14,90); ctx.closePath();
-    ctx.fillStyle='#0a0a18'; ctx.fill(); ctx.stroke();
-    // Зелёное пламя
-    for(let e=0;e<3;e++){
-      const ex=-10+e*10;
-      const fl=8+heat*.45+Math.sin(f*.3+e)*3;
-      const fg=ctx.createLinearGradient(ex,90,ex,90+fl);
-      fg.addColorStop(0,`rgba(0,255,100,.9)`); fg.addColorStop(1,'rgba(0,0,0,0)');
-      if(heat>5){ ctx.beginPath(); ctx.moveTo(ex-4,90); ctx.lineTo(ex,90+fl); ctx.lineTo(ex+4,90); ctx.fillStyle=fg; ctx.fill(); }
-      ctx.beginPath(); ctx.moveTo(ex-5,86); ctx.lineTo(ex-4,95); ctx.lineTo(ex+4,95); ctx.lineTo(ex+5,86);
-      ctx.closePath(); ctx.fillStyle='#050510'; ctx.fill(); ctx.strokeStyle=`rgba(0,255,100,.3)`; ctx.lineWidth=.8; ctx.stroke();
-    }
-    ctx.restore();
-  },
+  // Materials
+  const bMat = new THREE.MeshStandardMaterial({ color: hasE2 ? 0x607898 : hasE1 ? 0x7090b0 : 0x9ab8d0, metalness: 0.75, roughness: 0.22 });
+  const nMat = new THREE.MeshStandardMaterial({ color: hasE2 ? 0x90b0cc : 0xc8e4f8, metalness: 0.6, roughness: 0.18 });
+  const dkMat = new THREE.MeshStandardMaterial({ color: 0x2a3a58, metalness: 0.88, roughness: 0.25 });
+  const glMat = new THREE.MeshStandardMaterial({ color: 0x88ccff, emissive: 0x2266bb, emissiveIntensity: 0.9, transparent: true, opacity: 0.82, roughness: 0.05 });
+  const strMat = new THREE.MeshStandardMaterial({ color: 0x4f8ef7, emissive: 0x1133cc, emissiveIntensity: 0.6 });
+  const rMat = new THREE.MeshStandardMaterial({ color: 0xe74c3c, metalness: 0.55, roughness: 0.32, emissive: 0x440000, emissiveIntensity: 0.3 });
+  const gMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x006622, emissiveIntensity: 0.8 });
+  const pMat = new THREE.MeshStandardMaterial({ color: 0x9b59b6, emissive: 0x220044, emissiveIntensity: 0.5 });
+  const eMat = new THREE.MeshStandardMaterial({ color: 0x1a2a40, metalness: 0.9, roughness: 0.2, emissive: 0x081020, emissiveIntensity: 0.6 });
+  const tMat = new THREE.MeshStandardMaterial({ color: 0x4a6080, metalness: 0.7, roughness: 0.35 });
 
-  // 4. Огненная — широкая, большой след
-  fire(ctx, cx, cy, f, heat, sc) {
-    ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
-    // Тело
-    ctx.beginPath();
-    ctx.moveTo(0,-65); ctx.lineTo(14,42); ctx.lineTo(14,90); ctx.lineTo(-14,90); ctx.lineTo(-14,42);
-    ctx.closePath();
-    const bg=ctx.createLinearGradient(-14,-65,14,90);
-    bg.addColorStop(0,'#ff4500'); bg.addColorStop(.35,'#e74c3c'); bg.addColorStop(.7,'#c0392b'); bg.addColorStop(1,'#7b0000');
-    ctx.fillStyle=bg; ctx.fill(); ctx.strokeStyle='rgba(255,120,50,.4)'; ctx.lineWidth=1; ctx.stroke();
-    // Огненные узоры
-    ctx.globalAlpha=.35;
-    for(let i=0;i<5;i++){
-      const fy=-30+i*18, fx=-8+Math.sin(f*.04+i)*5;
-      ctx.strokeStyle='rgba(255,200,50,.9)'; ctx.lineWidth=1.5;
-      ctx.beginPath(); ctx.moveTo(fx,fy); ctx.quadraticCurveTo(fx+4,fy+8,fx+1,fy+16); ctx.stroke();
-    }
-    ctx.globalAlpha=1;
-    // Нос
-    ctx.beginPath(); ctx.moveTo(0,-65); ctx.lineTo(14,42); ctx.lineTo(-14,42); ctx.closePath();
-    ctx.fillStyle='#ff6b35'; ctx.fill(); ctx.strokeStyle='rgba(255,150,50,.4)'; ctx.lineWidth=1; ctx.stroke();
-    ctx.beginPath(); ctx.arc(0,-65,4,0,Math.PI*2); ctx.fillStyle='#ff9966'; ctx.fill();
-    // Горящий иллюминатор
-    const wf=0.6+Math.sin(f*.09)*0.3;
-    ctx.beginPath(); ctx.ellipse(0,-14,7,10,0,0,Math.PI*2);
-    ctx.fillStyle=`rgba(255,80,0,${wf})`; ctx.fill();
-    ctx.strokeStyle=`rgba(255,180,50,${wf})`; ctx.lineWidth=1; ctx.stroke();
-    // Зачёсанные крылья
-    ctx.beginPath(); ctx.moveTo(-14,52); ctx.lineTo(-36,90); ctx.lineTo(-14,90); ctx.closePath();
-    const ff=ctx.createLinearGradient(-36,0,-14,0); ff.addColorStop(0,'#7b0000'); ff.addColorStop(1,'#e74c3c');
-    ctx.fillStyle=ff; ctx.fill(); ctx.strokeStyle='rgba(255,100,0,.3)'; ctx.lineWidth=1; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(14,52); ctx.lineTo(36,90); ctx.lineTo(14,90); ctx.closePath();
-    ctx.fillStyle=ff; ctx.fill(); ctx.stroke();
-    // Большое пламя
-    for(let e=0;e<3;e++){
-      const ex=-11+e*11;
-      const fl=16+heat*.7+Math.sin(f*.25+e)*7;
-      const fg=ctx.createLinearGradient(ex,90,ex,90+fl);
-      fg.addColorStop(0,'rgba(255,100,0,.98)'); fg.addColorStop(.4,'rgba(255,50,0,.7)'); fg.addColorStop(1,'rgba(0,0,0,0)');
-      if(heat>3){ ctx.beginPath(); ctx.moveTo(ex-7,90); ctx.lineTo(ex,90+fl); ctx.lineTo(ex+7,90); ctx.fillStyle=fg; ctx.fill(); }
-      ctx.beginPath(); ctx.moveTo(ex-5,86); ctx.lineTo(ex-6,95); ctx.lineTo(ex+6,95); ctx.lineTo(ex+5,86);
-      ctx.closePath(); ctx.fillStyle='#600000'; ctx.fill();
-    }
-    ctx.restore();
-  },
+  // ── BODY ──
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(bW, bW * 1.08, bH, 28, 6), bMat);
+  body.castShadow = true; rocketGroup.add(body);
 
-  // 5. Галактическая — фиолетовая с туманностью
-  galaxy(ctx, cx, cy, f, heat, sc) {
-    ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
-    ctx.beginPath();
-    ctx.moveTo(0,-68); ctx.lineTo(12,40); ctx.lineTo(12,90); ctx.lineTo(-12,90); ctx.lineTo(-12,40);
-    ctx.closePath();
-    const bg=ctx.createLinearGradient(-12,-68,12,90);
-    bg.addColorStop(0,'#1a0050'); bg.addColorStop(.3,'#4a1090'); bg.addColorStop(.6,'#7c5cfc'); bg.addColorStop(1,'#2a0080');
-    ctx.fillStyle=bg; ctx.fill();
-    // Звёзды внутри
-    ctx.save(); ctx.beginPath(); ctx.moveTo(0,-68); ctx.lineTo(12,40); ctx.lineTo(12,90); ctx.lineTo(-12,90); ctx.lineTo(-12,40); ctx.closePath(); ctx.clip();
-    for(let i=0;i<14;i++){
-      const sx=-8+Math.cos(i*1.9+f*.015)*9, sy=-52+i*11;
-      const a=0.25+Math.sin(f*.08+i)*.18;
-      ctx.beginPath(); ctx.arc(sx,sy,1,0,Math.PI*2);
-      ctx.fillStyle=`rgba(255,255,255,${a})`; ctx.fill();
-    }
-    ctx.restore();
-    // Пульсирующий контур
-    const glow=0.3+Math.sin(f*.05)*.2;
-    ctx.strokeStyle=`rgba(180,150,255,${glow+.2})`; ctx.lineWidth=1.5;
-    ctx.beginPath(); ctx.moveTo(0,-68); ctx.lineTo(12,40); ctx.lineTo(12,90); ctx.lineTo(-12,90); ctx.lineTo(-12,40); ctx.closePath(); ctx.stroke();
-    // Нос
-    ctx.beginPath(); ctx.moveTo(0,-68); ctx.lineTo(12,40); ctx.lineTo(-12,40); ctx.closePath();
-    const ng=ctx.createLinearGradient(-12,0,12,0);
-    ng.addColorStop(0,'#5a20c0'); ng.addColorStop(.5,'#b39dfa'); ng.addColorStop(1,'#4a10a0');
-    ctx.fillStyle=ng; ctx.fill(); ctx.strokeStyle=`rgba(180,150,255,${glow})`; ctx.lineWidth=1; ctx.stroke();
-    ctx.beginPath(); ctx.arc(0,-68,3.5,0,Math.PI*2); ctx.fillStyle='#c8aaff'; ctx.fill();
-    // Туманность иллюминатор
-    const wg=ctx.createRadialGradient(0,-14,1,0,-14,9);
-    wg.addColorStop(0,'rgba(200,150,255,.9)'); wg.addColorStop(1,'rgba(80,20,180,.5)');
-    ctx.beginPath(); ctx.ellipse(0,-14,7.5,10,0,0,Math.PI*2); ctx.fillStyle=wg; ctx.fill();
-    ctx.strokeStyle=`rgba(200,160,255,${glow+.3})`; ctx.lineWidth=1; ctx.stroke();
-    // Крылья
-    ctx.beginPath(); ctx.moveTo(-12,50); ctx.lineTo(-30,80); ctx.lineTo(-30,90); ctx.lineTo(-12,86); ctx.closePath();
-    ctx.fillStyle='#3a1080'; ctx.fill(); ctx.strokeStyle=`rgba(160,100,255,.4)`; ctx.lineWidth=1; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(12,50); ctx.lineTo(30,80); ctx.lineTo(30,90); ctx.lineTo(12,86); ctx.closePath();
-    ctx.fillStyle='#3a1080'; ctx.fill(); ctx.stroke();
-    // Фиолетовое пламя с частицами
-    for(let e=0;e<3;e++){
-      const ex=-10+e*10;
-      const fl=12+heat*.55+Math.sin(f*.3+e)*5;
-      const fg=ctx.createLinearGradient(ex,90,ex,90+fl);
-      fg.addColorStop(0,'rgba(160,100,255,.95)'); fg.addColorStop(.5,'rgba(100,50,200,.5)'); fg.addColorStop(1,'rgba(0,0,0,0)');
-      if(heat>5){ ctx.beginPath(); ctx.moveTo(ex-5,90); ctx.lineTo(ex,90+fl); ctx.lineTo(ex+5,90); ctx.fillStyle=fg; ctx.fill(); }
-      ctx.beginPath(); ctx.moveTo(ex-5,86); ctx.lineTo(ex-6,95); ctx.lineTo(ex+6,95); ctx.lineTo(ex+5,86);
-      ctx.closePath(); ctx.fillStyle='#200060'; ctx.fill();
-    }
-    // Магические частицы вокруг
-    for(let i=0;i<5;i++){
-      const a=f*.03+i*1.26;
-      const px=Math.cos(a)*(16+i*3), py=-20+Math.sin(a*1.3)*30;
-      const pa=0.2+Math.sin(f*.08+i)*.15;
-      ctx.beginPath(); ctx.arc(px,py,1.2,0,Math.PI*2);
-      ctx.fillStyle=`rgba(200,150,255,${pa})`; ctx.fill();
-    }
-    ctx.restore();
-  },
+  // Body panel lines
+  for (let i = 0; i < 4; i++) {
+    const stripe = new THREE.Mesh(new THREE.CylinderGeometry(bW + 0.005, bW + 0.005, 0.03, 28), strMat);
+    stripe.position.y = -0.4 + i * 0.55; rocketGroup.add(stripe);
+  }
 
-  // 6. Нептуниум — ледяная, кристаллические крылья
-  neptune(ctx, cx, cy, f, heat, sc) {
-    ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
-    // Тонкий ледяной корпус
-    ctx.beginPath();
-    ctx.moveTo(0,-72); ctx.lineTo(10,30); ctx.lineTo(10,90); ctx.lineTo(-10,90); ctx.lineTo(-10,30);
-    ctx.closePath();
-    const bg=ctx.createLinearGradient(-10,-72,10,90);
-    bg.addColorStop(0,'#e0f4ff'); bg.addColorStop(.25,'#80d0f8'); bg.addColorStop(.6,'#1a8abf'); bg.addColorStop(1,'#0a4a6e');
-    ctx.fillStyle=bg; ctx.fill();
-    // Ледяные трещины
-    ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.lineWidth=.8;
-    ctx.beginPath(); ctx.moveTo(-6,-45); ctx.lineTo(0,-22); ctx.lineTo(7,5); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(5,-35); ctx.lineTo(-2,8); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-4,15); ctx.lineTo(6,35); ctx.stroke();
-    // Ледяной контур
-    ctx.strokeStyle='rgba(100,220,255,.5)'; ctx.lineWidth=1.2;
-    ctx.beginPath(); ctx.moveTo(0,-72); ctx.lineTo(10,30); ctx.lineTo(10,90); ctx.lineTo(-10,90); ctx.lineTo(-10,30); ctx.closePath(); ctx.stroke();
-    // Острый нос
-    ctx.beginPath(); ctx.moveTo(0,-72); ctx.lineTo(10,30); ctx.lineTo(-10,30); ctx.closePath();
-    ctx.fillStyle='#c8ecff'; ctx.fill(); ctx.strokeStyle='rgba(100,220,255,.5)'; ctx.lineWidth=1; ctx.stroke();
-    ctx.beginPath(); ctx.arc(0,-72,3,0,Math.PI*2); ctx.fillStyle='#e8f8ff'; ctx.fill();
-    // Пульсирующий иллюминатор
-    const wp=0.55+Math.sin(f*.07)*0.3;
-    ctx.beginPath(); ctx.ellipse(0,-18,5.5,8,0,0,Math.PI*2);
-    ctx.fillStyle=`rgba(100,220,255,${wp})`; ctx.fill();
-    ctx.strokeStyle=`rgba(200,240,255,${wp+.2})`; ctx.lineWidth=1.2; ctx.stroke();
-    // Кристаллические крылья — острые
-    ctx.beginPath(); ctx.moveTo(-10,38); ctx.lineTo(-38,70); ctx.lineTo(-30,90); ctx.lineTo(-10,90); ctx.closePath();
-    const cf=ctx.createLinearGradient(-38,0,-10,0);
-    cf.addColorStop(0,'#0a4a6e'); cf.addColorStop(.5,'#1a8abf'); cf.addColorStop(1,'#80d0f8');
-    ctx.fillStyle=cf; ctx.fill(); ctx.strokeStyle='rgba(100,220,255,.5)'; ctx.lineWidth=1; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(10,38); ctx.lineTo(38,70); ctx.lineTo(30,90); ctx.lineTo(10,90); ctx.closePath();
-    ctx.fillStyle=cf; ctx.fill(); ctx.stroke();
-    // Ледяное пламя
-    for(let e=0;e<3;e++){
-      const ex=-8+e*8;
-      const fl=13+heat*.6+Math.sin(f*.3+e)*5;
-      const fg=ctx.createLinearGradient(ex,90,ex,90+fl);
-      fg.addColorStop(0,'rgba(100,220,255,.98)'); fg.addColorStop(.4,'rgba(150,240,255,.5)'); fg.addColorStop(1,'rgba(0,0,0,0)');
-      if(heat>5){ ctx.beginPath(); ctx.moveTo(ex-4,90); ctx.lineTo(ex,90+fl); ctx.lineTo(ex+4,90); ctx.fillStyle=fg; ctx.fill(); }
-      ctx.beginPath(); ctx.moveTo(ex-4,86); ctx.lineTo(ex-5,95); ctx.lineTo(ex+5,95); ctx.lineTo(ex+4,86);
-      ctx.closePath(); ctx.fillStyle='#062030'; ctx.fill();
-    }
-    // Ледяные осколки
-    for(let i=0;i<5;i++){
-      const ix=(-12+i*6)+Math.sin(f*.04+i)*4;
-      const iy=96+i*3;
-      const ia=0.5-i*.08;
-      ctx.save(); ctx.translate(ix,iy); ctx.rotate(f*.02+i);
-      ctx.beginPath(); ctx.moveTo(0,-3); ctx.lineTo(2,1); ctx.lineTo(0,3); ctx.lineTo(-2,1); ctx.closePath();
-      ctx.fillStyle=`rgba(150,230,255,${ia})`; ctx.fill();
-      ctx.restore();
-    }
-    ctx.restore();
-  },
-};
+  // ── NOSE ──
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(bW, 1.9, 28, 4), nMat);
+  nose.position.y = bH / 2 + 0.95; nose.castShadow = true; rocketGroup.add(nose);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 10), nMat);
+  tip.position.y = bH / 2 + 1.9; rocketGroup.add(tip);
+
+  // ── WINDOW ──
+  const winOuter = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.04, 10, 28), dkMat);
+  winOuter.position.set(bW + 0.01, bH / 2 - 0.45, 0); winOuter.rotation.y = Math.PI / 2; rocketGroup.add(winOuter);
+  const win = new THREE.Mesh(new THREE.CircleGeometry(0.18, 20), glMat);
+  win.position.set(bW + 0.02, bH / 2 - 0.45, 0); win.rotation.y = Math.PI / 2; rocketGroup.add(win);
+  const wGlow = new THREE.PointLight(0x88ccff, 0.6, 1.2); wGlow.position.set(bW, bH / 2 - 0.45, 0); rocketGroup.add(wGlow);
+  rocketMeshes.windowGlow = wGlow; rocketMeshes.win = win;
+
+  // MarsX logo strip
+  const logo = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.22, 0.55), new THREE.MeshStandardMaterial({ color: 0x4f8ef7, emissive: 0x2244cc, emissiveIntensity: 0.7 }));
+  logo.position.set(bW + 0.005, -0.1, 0); logo.rotation.y = Math.PI / 2; rocketGroup.add(logo);
+
+  // ── FINS ──
+  const finCount = hasE2 ? 4 : 3;
+  for (let i = 0; i < finCount; i++) {
+    const a = i / finCount * Math.PI * 2 + (finCount === 3 ? 0 : Math.PI / 4);
+    const fW = 0.05, fH = 1.1, fD = hasE2 ? 0.85 : 0.7;
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(fW, fH, fD), bMat.clone());
+    fin.position.set(Math.cos(a) * (bW + 0.32), -bH / 2 + 0.5, Math.sin(a) * (bW + 0.32));
+    fin.rotation.y = -a; fin.castShadow = true; rocketGroup.add(fin);
+    // Fin edge glow
+    const fe = new THREE.Mesh(new THREE.BoxGeometry(0.02, fH * 0.8, 0.03), strMat);
+    fe.position.set(Math.cos(a) * (bW + 0.6), -bH / 2 + 0.5, Math.sin(a) * (bW + 0.6));
+    fe.rotation.y = -a; rocketGroup.add(fe);
+  }
+
+  // ── NOZZLES ──
+  const nozzPos = hasE2
+    ? [{ x: 0, z: 0 }, { x: 0.32, z: 0 }, { x: -0.32, z: 0 }, { x: 0, z: 0.32 }, { x: 0, z: -0.32 }]
+    : [{ x: 0, z: 0 }];
+  nozzPos.forEach((np, ni) => {
+    const nb = new THREE.Mesh(new THREE.CylinderGeometry(0.11 + ni * 0.01, 0.19 + ni * 0.01, 0.38, 18), eMat);
+    nb.position.set(np.x, -bH / 2 - 0.18, np.z); rocketGroup.add(nb);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.025, 8, 24), new THREE.MeshStandardMaterial({ color: 0x4488ff, emissive: 0x2244ff, emissiveIntensity: 2.5 }));
+    ring.position.set(np.x, -bH / 2 - 0.37, np.z); ring.rotation.x = Math.PI / 2; rocketGroup.add(ring);
+  });
+  rocketMeshes.nozzPos = nozzPos; rocketMeshes.bH = bH;
+
+  // ── BOOSTERS (engine_1) ──
+  if (hasE1) {
+    [1, -1].forEach(s => {
+      const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.9, 16), tMat.clone());
+      pod.position.set(s * (bW + 0.3), -bH / 2 + 0.32, 0); rocketGroup.add(pod);
+      const podCap = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 12), tMat.clone());
+      podCap.position.set(s * (bW + 0.3), -bH / 2 + 0.77, 0); rocketGroup.add(podCap);
+      const conn = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.06), dkMat);
+      conn.position.set(s * (bW + 0.15), -0.3, 0); rocketGroup.add(conn);
+      const conn2 = conn.clone(); conn2.position.y = 0.15; rocketGroup.add(conn2);
+      const pnoz = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.11, 0.22, 12), eMat);
+      pnoz.position.set(s * (bW + 0.3), -bH / 2 - 0.12, 0); rocketGroup.add(pnoz);
+    });
+  }
+
+  // ── SIDE TANKS ──
+  if (hasTank) {
+    [1, -1].forEach(s => {
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 2.3, 16), new THREE.MeshStandardMaterial({ color: 0x506070, metalness: 0.8, roughness: 0.3 }));
+      tank.position.set(s * (bW + 0.4), -0.15, 0); rocketGroup.add(tank);
+      [0.95, -1.15].forEach(ty => {
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 12), dkMat);
+        cap.position.set(s * (bW + 0.4), ty, 0); rocketGroup.add(cap);
+      });
+      [-0.4, 0.35].forEach(ty => {
+        const ts = new THREE.Mesh(new THREE.CylinderGeometry(0.175, 0.175, 0.03, 16), strMat);
+        ts.position.set(s * (bW + 0.4), ty, 0); rocketGroup.add(ts);
+      });
+    });
+  }
+
+  // ── BLASTERS ──
+  if (hasB1) {
+    [1, -1].forEach(s => {
+      const off = hasTank ? 0.42 : 0.18;
+      const house = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.42, 0.14), rMat.clone());
+      house.position.set(s * (bW + off), 0.22, 0); rocketGroup.add(house);
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.55, 10), dkMat);
+      barrel.position.set(s * (bW + off), 0.65, 0); rocketGroup.add(barrel);
+      rocketMeshes[`barrel_${s}`] = barrel;
+      const mfMat = new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xff2200, emissiveIntensity: 4, transparent: true, opacity: 0 });
+      const mf = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), mfMat);
+      mf.position.set(s * (bW + off), 0.95, 0); rocketGroup.add(mf);
+      rocketMeshes[`muzzle_${s}`] = mf;
+      if (hasB2) {
+        const b2 = house.clone(); b2.position.set(s * (bW + off), 0.1, 0.16); rocketGroup.add(b2);
+        const br2 = barrel.clone(); br2.position.set(s * (bW + off), 0.52, 0.16); rocketGroup.add(br2);
+      }
+    });
+  }
+
+  // ── SCANNER ──
+  if (hasScan) {
+    const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.55, 8), gMat);
+    ant.position.set(0.12, bH / 2 + 1.95, 0); rocketGroup.add(ant);
+    const dish = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.025, 8, 20, 0.8 * Math.PI), gMat.clone());
+    dish.position.set(0.12, bH / 2 + 2.2, 0); dish.rotation.z = -0.3; rocketGroup.add(dish);
+    const prMat2 = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x00aa44, emissiveIntensity: 1.2, transparent: true, opacity: 0.7 });
+    const pr = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.015, 8, 32), prMat2);
+    pr.position.copy(dish.position); pr.rotation.x = Math.PI / 2; rocketGroup.add(pr);
+    rocketMeshes.scanPulse = pr;
+  }
+
+  // ── TURRETS ──
+  if (hasTurret) {
+    [1, -1].forEach(s => {
+      const tb = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.16, 12), pMat.clone());
+      tb.position.set(s * (bW + 0.24), 0.85, 0); rocketGroup.add(tb);
+      const tg = new THREE.Group(); tg.position.copy(tb.position); rocketGroup.add(tg);
+      const tBar = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.38, 8), pMat.clone());
+      tBar.position.y = 0.28; tg.add(tBar);
+      const tMz = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), new THREE.MeshStandardMaterial({ color: 0xcc44ff, emissive: 0x880088, emissiveIntensity: 1.5 }));
+      tMz.position.y = 0.5; tg.add(tMz);
+      rocketMeshes[`turretGroup_${s}`] = tg;
+    });
+  }
+
+  // ── DROID ──
+  if (hasDroid) {
+    const dBody = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.14), new THREE.MeshStandardMaterial({ color: 0x2a3a5a, metalness: 0.8, roughness: 0.3 }));
+    dBody.position.set(bW + 0.22, 0.5, 0); rocketGroup.add(dBody);
+    const dEye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), new THREE.MeshStandardMaterial({ color: 0x4488ff, emissive: 0x2244ff, emissiveIntensity: 2 }));
+    dEye.position.set(bW + 0.29, 0.52, 0); rocketGroup.add(dEye);
+    rocketMeshes.droid = dBody; rocketMeshes.droidEye = dEye;
+  }
+}
+
+function spawnExhaust3D(pos) {
+  if (!THREE || !tapScene) return;
+  const geo = new THREE.SphereGeometry(0.05 + Math.random() * 0.04, 5, 5);
+  const mat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0.25 + Math.random() * 0.2, 0.35 + Math.random() * 0.2, 1.0),
+    emissive: new THREE.Color(0.05, 0.1, 0.5),
+    emissiveIntensity: 1.5,
+    transparent: true, opacity: 0.85
+  });
+  const p = new THREE.Mesh(geo, mat);
+  p.position.set(pos.x + (Math.random() - 0.5) * 0.1, pos.y, pos.z + (Math.random() - 0.5) * 0.1);
+  p.userData = {
+    vy: -0.07 - Math.random() * 0.07,
+    vx: (Math.random() - 0.5) * 0.03,
+    vz: (Math.random() - 0.5) * 0.03,
+    life: 1, decay: 0.055 + Math.random() * 0.04
+  };
+  tapScene.add(p);
+  exhaustParticles.push(p);
+}
 
 function animateTap() {
-  if(!tapCtx){ requestAnimationFrame(animateTap); return; }
-  const c=tapCtx.canvas, W=c.width, H=c.height;
-  if(!W||H<10){ requestAnimationFrame(animateTap); return; }
-  const cx=W/2;
+  if (!tapRenderer || !THREE) { requestAnimationFrame(animateTap); return; }
+  tapFrame3d++;
   tapFrame++;
-  if(tapHeat>0) tapHeat=Math.max(0,tapHeat-.4);
-  const vis=PLANET_VISUALS[tapCurrentPlanet]||PLANET_VISUALS.earth;
+  if (tapHeat > 0) tapHeat = Math.max(0, tapHeat - 0.4);
 
-  // Фон
-  tapCtx.fillStyle=vis.bg; tapCtx.fillRect(0,0,W,H);
-
-  // Звёзды
-  if(!rocketStars){
-    rocketStars=[];
-    for(let i=0;i<80;i++) rocketStars.push({x:Math.random()*W,y:Math.random()*H*.62,r:.5+Math.random()*1.5,o:.15+Math.random()*.55});
-  }
-  for(const s of rocketStars){
-    tapCtx.beginPath(); tapCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
-    tapCtx.fillStyle=`rgba(255,255,255,${s.o+Math.sin(tapFrame*.04+s.x)*.06})`; tapCtx.fill();
+  // Auto rotate
+  if (autoRotate) targetRotY += 0.007;
+  rotY += (targetRotY - rotY) * 0.09;
+  rotX += (targetRotX - rotX) * 0.09;
+  if (rocketGroup) {
+    rocketGroup.rotation.y = rotY;
+    rocketGroup.rotation.x = rotX;
+    rocketGroup.position.y = Math.sin(tapFrame3d * 0.022) * 0.06;
   }
 
-  // Зарево
-  const skyG=tapCtx.createRadialGradient(cx,H,0,cx,H,H*.75);
-  skyG.addColorStop(0,vis.sky); skyG.addColorStop(1,'rgba(0,0,0,0)');
-  tapCtx.fillStyle=skyG; tapCtx.fillRect(0,0,W,H);
-
-  // Поверхность
-  tapCtx.fillStyle=vis.ground;
-  tapCtx.beginPath(); tapCtx.ellipse(cx,H+10,W*.9,28,0,Math.PI,Math.PI*2); tapCtx.fill();
-
-  const padY   = H-Math.floor(H*.15);
-  const rocketY = H-Math.floor(H*.27);
-
-  // Платформа
-  tapCtx.fillStyle='#1a2540';
-  tapCtx.beginPath(); tapCtx.roundRect(cx-55,padY,110,13,3); tapCtx.fill();
-  tapCtx.fillStyle='#263060'; tapCtx.fillRect(cx-62,padY-4,124,6);
-  for(let i=0;i<3;i++){
-    const lx=cx-36+i*36;
-    tapCtx.fillStyle='#1e2e4a'; tapCtx.fillRect(lx-3,padY-30,6,30);
-    tapCtx.fillStyle='#141e30'; tapCtx.fillRect(lx-7,padY-4,14,5);
-  }
-  tapCtx.strokeStyle='#263060'; tapCtx.lineWidth=3;
-  tapCtx.beginPath(); tapCtx.moveTo(cx-52,padY); tapCtx.lineTo(cx-18,rocketY); tapCtx.stroke();
-  tapCtx.beginPath(); tapCtx.moveTo(cx+52,padY); tapCtx.lineTo(cx+18,rocketY); tapCtx.stroke();
-
-  // Дым
-  if(tapHeat>15&&tapFrame%2===0){
-    for(let i=0;i<2;i++) SMOKE_P.push({x:cx+(-14+i*14)+(Math.random()-.5)*6,y:rocketY,vx:(Math.random()-.5)*1.2,vy:-1.2-Math.random()*.8,r:3+Math.random()*5,life:.5+Math.random()*.3});
-  }
-  for(let i=SMOKE_P.length-1;i>=0;i--){
-    const s=SMOKE_P[i]; s.x+=s.vx; s.y+=s.vy; s.r+=.25; s.life-=.018;
-    if(s.life<=0){SMOKE_P.splice(i,1);continue;}
-    tapCtx.beginPath(); tapCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
-    tapCtx.fillStyle=`rgba(180,200,230,${s.life*.5*(tapHeat/100)})`; tapCtx.fill();
+  // Engine light
+  if (engLight) {
+    engLight.intensity = tapHeat * 0.04 + Math.sin(tapFrame3d * 0.18) * 0.04;
+    engLight.position.y = -2.4;
   }
 
-  // Ракета — выбираем скин
-  const skinKey = (currentSkinColors && currentSkinColors._skin) || 'default';
-  const drawFn  = ROCKET_SKINS_DRAW[skinKey] || ROCKET_SKINS_DRAW.default;
-  const sc      = Math.max(0.55, Math.min(1.05, H/260));
-  drawFn(tapCtx, cx, rocketY, tapFrame, tapHeat, sc);
-
-  // Частицы тапа
-  for(let i=TAP_P.length-1;i>=0;i--){
-    const p=TAP_P[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=.12; p.life-=.028;
-    if(p.life<=0){TAP_P.splice(i,1);continue;}
-    tapCtx.beginPath(); tapCtx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2);
-    tapCtx.fillStyle=`rgba(${p.c},${p.life})`; tapCtx.fill();
+  // Exhaust particles
+  if (rocketMeshes.nozzPos && (tapHeat > 12 || tapFrame3d % 4 === 0)) {
+    const bY = rocketGroup ? rocketGroup.position.y : 0;
+    const bH = rocketMeshes.bH || 3;
+    rocketMeshes.nozzPos.forEach(np => {
+      spawnExhaust3D({ x: np.x, y: bY - bH / 2 - 0.5, z: np.z });
+    });
   }
 
-  // Шкала прогрева/топлива
-  const bw=W-28, bx2=14, by2=H-12, bh=5;
-  tapCtx.fillStyle='rgba(255,255,255,.06)';
-  tapCtx.beginPath(); tapCtx.roundRect(bx2,by2,bw,bh,3); tapCtx.fill();
-  if(tapHeat>0){
-    const hfg=tapCtx.createLinearGradient(bx2,0,bx2+bw,0);
-    hfg.addColorStop(0,'#4f8ef7'); hfg.addColorStop(.5,'#7c5cfc'); hfg.addColorStop(1,'#f5c518');
-    tapCtx.fillStyle=hfg; tapCtx.beginPath(); tapCtx.roundRect(bx2,by2,bw*(tapHeat/100),bh,3); tapCtx.fill();
+  // Update particles
+  for (let i = exhaustParticles.length - 1; i >= 0; i--) {
+    const p = exhaustParticles[i];
+    p.position.y += p.userData.vy;
+    p.position.x += p.userData.vx;
+    p.position.z += p.userData.vz;
+    p.userData.life -= p.userData.decay;
+    p.material.opacity = p.userData.life * 0.8;
+    p.scale.setScalar(0.4 + p.userData.life * 0.6);
+    if (p.userData.life <= 0) { tapScene.remove(p); exhaustParticles.splice(i, 1); }
   }
-  const hlbl=tapHeat>85?'🔥 Готово к старту!':tapHeat>40?`⚡ Прогрев ${Math.floor(tapHeat)}%`:'Тапай — добывай топливо';
-  tapCtx.fillStyle=tapHeat>85?'#f5c518':tapHeat>40?'#7c5cfc':'rgba(107,125,179,.8)';
-  tapCtx.font=`${tapHeat>85?'bold ':''}10px -apple-system`;
-  tapCtx.textAlign='center'; tapCtx.fillText(hlbl,W/2,by2-5);
 
+  // Scanner pulse
+  if (rocketMeshes.scanPulse) {
+    const s = 1 + Math.sin(tapFrame3d * 0.07) * 0.45;
+    rocketMeshes.scanPulse.scale.setScalar(s);
+    rocketMeshes.scanPulse.material.opacity = 0.7 - Math.sin(tapFrame3d * 0.07) * 0.45;
+  }
+
+  // Window glow
+  if (rocketMeshes.windowGlow) rocketMeshes.windowGlow.intensity = 0.35 + Math.sin(tapFrame3d * 0.05) * 0.2;
+
+  // Muzzle flash
+  [1, -1].forEach(s => {
+    const mf = rocketMeshes[`muzzle_${s}`];
+    if (mf) { const fl = Math.max(0, Math.sin(tapFrame3d * 0.13 + s) * 0.5); mf.material.opacity = fl; mf.material.emissiveIntensity = fl * 5; }
+  });
+
+  // Turret rotation
+  [1, -1].forEach(s => {
+    const tg = rocketMeshes[`turretGroup_${s}`];
+    if (tg) tg.rotation.y = Math.sin(tapFrame3d * 0.04 + s * 1.5) * 1.3;
+  });
+
+  // Droid orbit
+  if (rocketMeshes.droid) {
+    const da = tapFrame3d * 0.05;
+    const bW2 = 0.44; const r2 = bW2 + 0.32;
+    rocketMeshes.droid.position.x = Math.cos(da) * r2;
+    rocketMeshes.droid.position.z = Math.sin(da) * r2;
+    rocketMeshes.droid.position.y = 0.3 + Math.sin(da * 1.3) * 0.15;
+    if (rocketMeshes.droidEye) rocketMeshes.droidEye.position.copy(rocketMeshes.droid.position);
+  }
+
+  // Rebuild rocket when inventory changes (check every 120 frames)
+  if (tapFrame3d % 120 === 0 && rocketGroup) buildRocket3D(G.inventory || {});
+
+  // Update heat bar UI (outside canvas)
+  const bw = document.getElementById('fuel-fill');
+  if (bw) { /* handled by updateMainUI */ }
+
+  tapRenderer.render(tapScene, tapCamera);
   requestAnimationFrame(animateTap);
 }
 
@@ -1074,6 +1149,7 @@ async function finalizeFlight(planet){
   showScreen('arrival-screen');
   document.getElementById('arrival-emoji').textContent=planet.emoji;
   document.getElementById('arrival-title').textContent=success?'Успешная экспедиция!':'Крушение!';
+  if(success) addActivity(`${G.tgUser?.first_name||'Командор'} долетел до ${planet.name}!`, planet.emoji);
   document.getElementById('arrival-subtitle').textContent=success?`Добыча на ${planet.name} завершена`:`Корабль потерян у ${planet.name}`;
   document.getElementById('rewards-box').innerHTML=success?`
     <div class="reward-row"><span class="reward-label">Получено GC</span><span class="reward-val">+${planet.reward} GC</span></div>
@@ -1141,8 +1217,13 @@ async function buyItem(iid){
   else if(item.stackable) G.inventory[iid]=(G.inventory[iid]||0)+1;
   else G.inventory[iid]=true;
   const res=await apiPost('/buy_item',{item_id:iid,price:item.price,currency:item.currency});
-  if(res?.status==='success'){showToast(`✅ ${item.name} — получено!`);updateMainUI();renderShop();}
-  else{showToast('Ошибка покупки');if(item.currency==='gc') G.gc+=item.price;}
+  if(res?.status==='success'){
+    showToast(`✅ ${item.name} — получено!`);
+    updateMainUI();
+    // Перестраиваем 3D ракету
+    if(typeof buildRocket3D==='function' && rocketGroup && THREE) buildRocket3D(G.inventory);
+    renderShop();
+  } else {showToast('Ошибка покупки');if(item.currency==='gc') G.gc+=item.price;}
 }
 
 // ══════════════════════════════════════════
@@ -1667,6 +1748,27 @@ function getEventLabel(type){
 const _origDoTap = doTap;
 
 
+function applyRocketSkin3D(skinKey) {
+  if (!rocketGroup || !THREE) return;
+  const skinColors = {
+    default: { body: 0x9ab8d0, nose: 0xc8e4f8, fin: 0x607890 },
+    gold:    { body: 0xf5c518, nose: 0xffe566, fin: 0xc48000 },
+    stealth: { body: 0x1a1a2a, nose: 0x2a2a3a, fin: 0x0a0a18 },
+    fire:    { body: 0xe74c3c, nose: 0xff6b5b, fin: 0x9b0000 },
+    galaxy:  { body: 0x7c5cfc, nose: 0xb39dfa, fin: 0x3a1090 },
+    neptune: { body: 0x1a8abf, nose: 0x70d0ff, fin: 0x0a4a6e },
+  };
+  const sc = skinColors[skinKey] || skinColors.default;
+  rocketGroup.traverse(obj => {
+    if (obj.isMesh && obj.material && obj.material.metalness > 0.5) {
+      const c = obj.material.color.getHex();
+      if (c === 0x9ab8d0 || c === 0x7090b0 || c === 0x607898) obj.material.color.setHex(sc.body);
+      else if (c === 0xc8e4f8 || c === 0x90b0cc) obj.material.color.setHex(sc.nose);
+      else if (c === 0x506070 || c === 0x4a6080) obj.material.color.setHex(sc.fin);
+    }
+  });
+}
+
 // ══════════════════════════════════════════
 //  MORE MENU
 // ══════════════════════════════════════════
@@ -1949,6 +2051,8 @@ async function equipSkin(key){
   if(res?.status==='success'){
     currentSkinColors = { ...(res.data.colors||{}), _skin: key };
     rocketStars = null;
+    // Перекрашиваем 3D ракету под скин
+    if(rocketGroup && THREE) applyRocketSkin3D(key);
     showToast('🎨 Скин применён!');
     showSkins();
   } else showToast(res?.message||'Ошибка');
@@ -2075,6 +2179,160 @@ async function claimBP(level, rewardType, seasonId){
 
 // Добавляем XP после успешного полёта
 const _origFinalizeFlight = finalizeFlight;
+
+// ══════════════════════════════════════════
+//  SPLASH SCREEN
+// ══════════════════════════════════════════
+function initSplash(){
+  const canvas = document.getElementById('splash-canvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W=200, H=200, cx=W/2, cy=H/2;
+  let f=0, launched=false;
+  let rocketY = cy+20;
+
+  function drawSplash(){
+    f++;
+    ctx.fillStyle='#07091a'; ctx.fillRect(0,0,W,H);
+
+    // Stars
+    if(!drawSplash._s){ drawSplash._s=[]; for(let i=0;i<50;i++) drawSplash._s.push({x:Math.random()*W,y:Math.random()*H,r:.3+Math.random(),o:.1+Math.random()*.5}); }
+    for(const s of drawSplash._s){ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${s.o+Math.sin(f*.04+s.x)*.05})`;ctx.fill();}
+
+    if(f>40 && !launched){
+      launched=true;
+      // Анимация взлёта
+    }
+    if(launched) rocketY -= 1.5;
+
+    // Rocket
+    ctx.save(); ctx.translate(cx, rocketY); ctx.scale(.7,.7);
+    // Flame
+    const fl=12+Math.sin(f*.3)*5;
+    const fg=ctx.createLinearGradient(0,90,0,90+fl);
+    fg.addColorStop(0,'rgba(140,180,255,.95)'); fg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.beginPath(); ctx.moveTo(-6,90); ctx.lineTo(0,90+fl); ctx.lineTo(6,90); ctx.fillStyle=fg; ctx.fill();
+    // Body
+    ctx.beginPath(); ctx.moveTo(0,-68); ctx.lineTo(13,40); ctx.lineTo(13,88); ctx.lineTo(-13,88); ctx.lineTo(-13,40); ctx.closePath();
+    const bg=ctx.createLinearGradient(-13,0,13,0); bg.addColorStop(0,'#8aaac8'); bg.addColorStop(.5,'#eef8ff'); bg.addColorStop(1,'#6888a0');
+    ctx.fillStyle=bg; ctx.fill(); ctx.strokeStyle='#7090ae'; ctx.lineWidth=.8; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,-68); ctx.lineTo(13,40); ctx.lineTo(-13,40); ctx.closePath(); ctx.fillStyle='#d0e8f8'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0,-12,8,11,0,0,Math.PI*2); ctx.fillStyle='rgba(100,180,255,.8)'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-13,50); ctx.lineTo(-28,80); ctx.lineTo(-28,88); ctx.lineTo(-13,85); ctx.closePath(); ctx.fillStyle='#8aaac8'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(13,50); ctx.lineTo(28,80); ctx.lineTo(28,88); ctx.lineTo(13,85); ctx.closePath(); ctx.fillStyle='#8aaac8'; ctx.fill();
+    ctx.restore();
+
+    if(rocketY < -50){
+      hideSplash(); return;
+    }
+    requestAnimationFrame(drawSplash);
+  }
+  drawSplash();
+
+  // Автоскрытие через 2.5 сек
+  setTimeout(hideSplash, 2500);
+}
+
+function hideSplash(){
+  const el = document.getElementById('splash-screen');
+  if(!el || el.style.display==='none') return;
+  el.style.opacity='0';
+  setTimeout(()=>{ el.style.display='none'; }, 500);
+}
+
+// ══════════════════════════════════════════
+//  ЛЕНТА АКТИВНОСТИ
+// ══════════════════════════════════════════
+const _activityItems = [];
+
+function addActivity(text, emoji='🚀'){
+  _activityItems.unshift({text, emoji, time: new Date()});
+  if(_activityItems.length > 8) _activityItems.pop();
+  renderActivity();
+}
+
+function renderActivity(){
+  const feed = document.getElementById('activity-feed');
+  const list = document.getElementById('activity-items');
+  if(!feed||!list) return;
+  if(_activityItems.length===0){ feed.style.display='none'; return; }
+  feed.style.display='block';
+  list.innerHTML = _activityItems.slice(0,5).map(item=>{
+    const mins = Math.floor((new Date()-item.time)/60000);
+    const timeStr = mins<1?'только что':mins<60?`${mins}м`:Math.floor(mins/60)+'ч';
+    return `<div class="activity-item"><span>${item.emoji}</span><span>${item.text}</span><span class="activity-time">${timeStr}</span></div>`;
+  }).join('');
+}
+
+async function loadRecentActivity(){
+  const res = await apiGet('/recent_activity');
+  if(res?.status==='success'){
+    (res.data||[]).forEach(item=>addActivity(item.text, item.emoji));
+  }
+}
+
+// ══════════════════════════════════════════
+//  СТАРТОВЫЙ ПАК
+// ══════════════════════════════════════════
+function checkStarterPack(){
+  // Показываем новым игрокам через 3 минуты после регистрации
+  if(G.onboardingDone && !G.inventory.starter_pack_seen){
+    const regTime = parseInt(localStorage.getItem('marsx_reg_time')||'0');
+    const now = Date.now();
+    if(!regTime){ localStorage.setItem('marsx_reg_time', now); return; }
+    if(now - regTime > 180000){ // 3 минуты
+      showStarterPack();
+    }
+  }
+}
+
+function showStarterPack(){
+  const modal = document.createElement('div');
+  modal.id = 'starter-pack-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML=`
+    <div style="background:var(--bg2);border:1px solid rgba(245,197,24,.4);border-radius:20px;padding:24px;max-width:320px;width:100%;text-align:center">
+      <div style="font-size:36px;margin-bottom:8px">🎁</div>
+      <div style="font-size:18px;font-weight:800;margin-bottom:4px;color:#f5c518">Пак Первопроходца</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Специальное предложение только для тебя!</div>
+      <div style="background:var(--bg3);border-radius:12px;padding:12px;margin-bottom:16px">
+        <div style="font-size:13px;margin-bottom:8px">В паке:</div>
+        <div style="display:flex;flex-direction:column;gap:5px;font-size:12px">
+          <div>💰 1000 GC</div>
+          <div>🛡 Щит × 3</div>
+          <div>⚡ Топливный буст × 2</div>
+          <div>⛽ +400 топлива</div>
+        </div>
+      </div>
+      <button onclick="buyStarterPack()" style="width:100%;padding:13px;background:linear-gradient(135deg,#f5c518,#f39c12);border:none;border-radius:12px;color:#1a0a00;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);margin-bottom:8px">
+        ⭐ 99 Stars — Забрать пак!
+      </button>
+      <button onclick="closeStarterPack()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:var(--font);padding:6px">
+        Не сейчас
+      </button>
+    </div>`;
+  document.body.appendChild(modal);
+  G.inventory.starter_pack_seen = true;
+}
+
+async function buyStarterPack(){
+  const res = await apiPost('/buy_starter_pack');
+  if(res?.status==='success'){
+    G.gc += 1000;
+    G.fuel = Math.min(G.fuelMax, G.fuel + 400);
+    G.inventory.shield = (G.inventory.shield||0) + 3;
+    G.inventory.fuel_boost = true;
+    showToast('🎁 Пак Первопроходца получен!');
+    closeStarterPack();
+    updateMainUI();
+  } else showToast(res?.message||'Ошибка');
+}
+
+function closeStarterPack(){
+  const m = document.getElementById('starter-pack-modal');
+  if(m) m.remove();
+}
+
 
 // ══════════════════════════════════════════
 //  TOAST + STARS
