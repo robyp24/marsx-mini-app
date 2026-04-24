@@ -3,6 +3,47 @@
 // ═══════════════════════════════════════════
 
 const API_URL      = 'https://humbly-petunia-customs.ngrok-free.dev';
+
+// ══════════════════════════════════════════
+//  MarsX Rocket — i18n (ru/en/es/pt/hi)
+// ══════════════════════════════════════════
+const TRANSLATIONS = {
+ru:{fuel:'ТОПЛИВО',capital:'КАПИТАЛ',rating:'РЕЙТИНГ',tap_hint:'Тапай ракету — добывай топливо',launch_btn:'🚀 Запустить экспедицию',nav_base:'База',nav_flights:'Полёты',nav_miners:'Майнеры',nav_quests:'Квесты',nav_league:'Лига',nav_map:'Карта',nav_more:'Ещё',select_planet:'Выбери планету',fuel_cost:'Топливо',risk:'Риск',reward:'Награда',duration:'Время',fly_btn:'Лететь!',cancel:'Отмена',shop:'Магазин',buy:'Купить',owned:'Куплено',boosters:'Бустеры',parts:'Запчасти',weapons:'Оружие',autopilot_item:'Автопилот',not_enough_gc:'Недостаточно GC',miners:'Майнеры',build_miner:'Построить майнер',collect:'Собрать',upgrade:'Улучшить',level:'Уровень',storage:'Хранилище',nothing_to_collect:'Нечего собирать',quests:'Квесты',claim_reward:'Забрать',quest_done:'Выполнено!',quest_progress:'Прогресс',league:'Лига командоров',rank:'Место',player:'Игрок',in_flight:'В полёте',autopilot_on:'✈️ Автопилот включён',tap_objects:'Тапай объекты для бонусов!',expedition_success:'🎉 Успешная экспедиция!',expedition_fail:'💥 Крушение!',collected:'Собрано',back_to_base:'На базу',spin_title:'Колесо фортуны',spin_btn:'🎰 Крутить!',spin_free:'Бесплатно раз в 24 часа',spin_next:'Следующий спин через',ob_welcome_title:'Добро пожаловать в MarsX!',ob_welcome_body:'Ты — командор межзвёздной базы. Тапай ракету чтобы добывать топливо.',ob_tap_title:'Тапай и комбо',ob_tap_body:'Быстрые тапы дают комбо ×2 и ×3. Набери 100% для старта!',ob_planet_title:'Первая экспедиция',ob_planet_body:'Луна — самый безопасный маршрут. Риск всего 8%.',ob_miner_title:'Майнеры и пассивный доход',ob_miner_body:'Построй майнер на Луне — он добывает GC пока ты офлайн.',ob_bonus_title:'Стартовый бонус получен!',ob_bonus_body:'Ты готов к покорению галактики. Удачных полётов, Командор!',ob_skip:'Пропустить',ob_next:'Далее',ob_start:'Начать игру 🚀',ob_step:'из',token_title:'MarsX Token (MXT)',token_phase:'Farming Phase',token_network:'Ethereum / BNB Chain',token_tge:'TGE (объявим в канале)',token_subscribe:'📣 Подписаться на анонсы',token_share:'👥 Пригласить друзей',token_wallet_placeholder:'0x... EVM адрес',token_connect_wallet:'🔗 Привязать кошелёк',loading:'Загрузка...',error_load:'Ошибка загрузки',wait_loading:'Подожди — загрузка...',daily_claimed:'Бонус уже получен',daily_streak:'день подряд'},
+en:{fuel:'FUEL',capital:'CAPITAL',rating:'RATING',tap_hint:'Tap rocket — mine fuel',launch_btn:'🚀 Launch expedition',nav_base:'Base',nav_flights:'Flights',nav_miners:'Miners',nav_quests:'Quests',nav_league:'League',nav_map:'Map',nav_more:'More',select_planet:'Select a planet',fuel_cost:'Fuel',risk:'Risk',reward:'Reward',duration:'Time',fly_btn:'Fly!',cancel:'Cancel',shop:'Shop',buy:'Buy',owned:'Owned',boosters:'Boosters',parts:'Parts',weapons:'Weapons',autopilot_item:'Autopilot',not_enough_gc:'Not enough GC',miners:'Miners',build_miner:'Build miner',collect:'Collect',upgrade:'Upgrade',level:'Level',storage:'Storage',nothing_to_collect:'Nothing to collect',quests:'Quests',claim_reward:'Claim',quest_done:'Completed!',quest_progress:'Progress',league:'Commander League',rank:'Rank',player:'Player',in_flight:'In flight',autopilot_on:'✈️ Autopilot ON',tap_objects:'Tap objects for bonuses!',expedition_success:'🎉 Expedition successful!',expedition_fail:'💥 Shipwreck!',collected:'Collected',back_to_base:'Back to base',spin_title:'Fortune Wheel',spin_btn:'🎰 Spin!',spin_free:'Free once every 24 hours',spin_next:'Next spin in',ob_welcome_title:'Welcome to MarsX!',ob_welcome_body:'You are a commander of an interstellar base. Tap the rocket to mine fuel.',ob_tap_title:'Tap & Combos',ob_tap_body:'Fast taps give ×2 and ×3 combos. Fill to 100% to launch!',ob_planet_title:'First expedition',ob_planet_body:'The Moon is the safest route. Only 8% risk.',ob_miner_title:'Miners & passive income',ob_miner_body:'Build a miner on the Moon — earns GC while offline.',ob_bonus_title:'Starter bonus received!',ob_bonus_body:'Ready to conquer the galaxy. Good luck, Commander!',ob_skip:'Skip',ob_next:'Next',ob_start:'Start game 🚀',ob_step:'of',token_title:'MarsX Token (MXT)',token_phase:'Farming Phase',token_network:'Ethereum / BNB Chain',token_tge:'TGE (announced in channel)',token_subscribe:'📣 Subscribe to announcements',token_share:'👥 Invite friends',token_wallet_placeholder:'0x... EVM address',token_connect_wallet:'🔗 Connect wallet',loading:'Loading...',error_load:'Failed to load',wait_loading:'Please wait...',daily_claimed:'Daily bonus claimed',daily_streak:'day streak'},
+es:{fuel:'COMBUSTIBLE',capital:'CAPITAL',rating:'RANKING',tap_hint:'Toca el cohete — extrae combustible',launch_btn:'🚀 Lanzar expedición',nav_base:'Base',nav_flights:'Vuelos',nav_miners:'Mineros',nav_quests:'Misiones',nav_league:'Liga',nav_map:'Mapa',nav_more:'Más',select_planet:'Selecciona un planeta',fuel_cost:'Combustible',risk:'Riesgo',reward:'Recompensa',duration:'Tiempo',fly_btn:'¡Volar!',cancel:'Cancelar',shop:'Tienda',buy:'Comprar',owned:'Comprado',boosters:'Impulsores',parts:'Piezas',weapons:'Armas',autopilot_item:'Piloto automático',not_enough_gc:'GC insuficiente',miners:'Mineros',build_miner:'Construir minero',collect:'Recolectar',upgrade:'Mejorar',level:'Nivel',storage:'Almacén',nothing_to_collect:'Nada que recolectar',quests:'Misiones',claim_reward:'Reclamar',quest_done:'¡Completado!',quest_progress:'Progreso',league:'Liga de Comandantes',rank:'Posición',player:'Jugador',in_flight:'En vuelo',autopilot_on:'✈️ Piloto automático activado',tap_objects:'¡Toca los objetos para bonificaciones!',expedition_success:'🎉 ¡Expedición exitosa!',expedition_fail:'💥 ¡Naufragio!',collected:'Recolectado',back_to_base:'Volver a la base',spin_title:'Rueda de la fortuna',spin_btn:'🎰 ¡Girar!',spin_free:'Gratis una vez cada 24 horas',spin_next:'Próximo giro en',ob_welcome_title:'¡Bienvenido a MarsX!',ob_welcome_body:'Eres el comandante de una base interestelar. Toca el cohete para extraer combustible.',ob_tap_title:'Toques y combos',ob_tap_body:'Los toques rápidos dan combos ×2 y ×3. ¡Llena al 100% para lanzar!',ob_planet_title:'Primera expedición',ob_planet_body:'La Luna es la ruta más segura. Solo 8% de riesgo.',ob_miner_title:'Mineros e ingresos pasivos',ob_miner_body:'Construye un minero en la Luna — gana GC sin conexión.',ob_bonus_title:'¡Bono inicial recibido!',ob_bonus_body:'¡Listo para conquistar la galaxia. ¡Buena suerte, Comandante!',ob_skip:'Omitir',ob_next:'Siguiente',ob_start:'Comenzar juego 🚀',ob_step:'de',token_title:'MarsX Token (MXT)',token_phase:'Fase de Farming',token_network:'Ethereum / BNB Chain',token_tge:'TGE (anunciado en canal)',token_subscribe:'📣 Suscribirse',token_share:'👥 Invitar amigos',token_wallet_placeholder:'0x... dirección EVM',token_connect_wallet:'🔗 Conectar billetera',loading:'Cargando...',error_load:'Error al cargar',wait_loading:'Espera...',daily_claimed:'Bono ya reclamado',daily_streak:'días seguidos'},
+pt:{fuel:'COMBUSTÍVEL',capital:'CAPITAL',rating:'RANKING',tap_hint:'Toque no foguete — extraia combustível',launch_btn:'🚀 Lançar expedição',nav_base:'Base',nav_flights:'Voos',nav_miners:'Mineradores',nav_quests:'Missões',nav_league:'Liga',nav_map:'Mapa',nav_more:'Mais',select_planet:'Selecione um planeta',fuel_cost:'Combustível',risk:'Risco',reward:'Recompensa',duration:'Tempo',fly_btn:'Voar!',cancel:'Cancelar',shop:'Loja',buy:'Comprar',owned:'Comprado',boosters:'Impulsores',parts:'Peças',weapons:'Armas',autopilot_item:'Piloto automático',not_enough_gc:'GC insuficiente',miners:'Mineradores',build_miner:'Construir minerador',collect:'Coletar',upgrade:'Melhorar',level:'Nível',storage:'Armazém',nothing_to_collect:'Nada para coletar',quests:'Missões',claim_reward:'Resgatar',quest_done:'Concluído!',quest_progress:'Progresso',league:'Liga dos Comandantes',rank:'Posição',player:'Jogador',in_flight:'Em voo',autopilot_on:'✈️ Piloto automático ativado',tap_objects:'Toque nos objetos para bônus!',expedition_success:'🎉 Expedição bem-sucedida!',expedition_fail:'💥 Naufrágio!',collected:'Coletado',back_to_base:'Voltar à base',spin_title:'Roda da fortuna',spin_btn:'🎰 Girar!',spin_free:'Grátis uma vez a cada 24 horas',spin_next:'Próximo giro em',ob_welcome_title:'Bem-vindo ao MarsX!',ob_welcome_body:'Você é o comandante de uma base interestelar. Toque no foguete para extrair combustível.',ob_tap_title:'Toques e combos',ob_tap_body:'Toques rápidos dão combos ×2 e ×3. Encha 100% para lançar!',ob_planet_title:'Primeira expedição',ob_planet_body:'A Lua é a rota mais segura. Apenas 8% de risco.',ob_miner_title:'Mineradores e renda passiva',ob_miner_body:'Construa um minerador na Lua — ganha GC offline.',ob_bonus_title:'Bônus inicial recebido!',ob_bonus_body:'Pronto para conquistar a galáxia. Boa sorte, Comandante!',ob_skip:'Pular',ob_next:'Próximo',ob_start:'Começar jogo 🚀',ob_step:'de',token_title:'MarsX Token (MXT)',token_phase:'Fase de Farming',token_network:'Ethereum / BNB Chain',token_tge:'TGE (anunciado no canal)',token_subscribe:'📣 Inscrever-se',token_share:'👥 Convidar amigos',token_wallet_placeholder:'0x... endereço EVM',token_connect_wallet:'🔗 Conectar carteira',loading:'Carregando...',error_load:'Erro ao carregar',wait_loading:'Aguarde...',daily_claimed:'Bônus já resgatado',daily_streak:'dias seguidos'},
+hi:{fuel:'ईंधन',capital:'पूंजी',rating:'रैंकिंग',tap_hint:'रॉकेट टैप करें — ईंधन खनन',launch_btn:'🚀 अभियान शुरू करें',nav_base:'बेस',nav_flights:'उड़ान',nav_miners:'खनिक',nav_quests:'क्वेस्ट',nav_league:'लीग',nav_map:'नक्शा',nav_more:'अधिक',select_planet:'ग्रह चुनें',fuel_cost:'ईंधन',risk:'जोखिम',reward:'इनाम',duration:'समय',fly_btn:'उड़ान भरें!',cancel:'रद्द करें',shop:'दुकान',buy:'खरीदें',owned:'खरीदा',boosters:'बूस्टर',parts:'पुर्जे',weapons:'हथियार',autopilot_item:'ऑटोपायलट',not_enough_gc:'पर्याप्त GC नहीं',miners:'खनिक',build_miner:'खनिक बनाएं',collect:'एकत्र करें',upgrade:'अपग्रेड',level:'स्तर',storage:'भंडार',nothing_to_collect:'एकत्र करने के लिए कुछ नहीं',quests:'क्वेस्ट',claim_reward:'दावा करें',quest_done:'पूर्ण!',quest_progress:'प्रगति',league:'कमांडर लीग',rank:'स्थान',player:'खिलाड़ी',in_flight:'उड़ान में',autopilot_on:'✈️ ऑटोपायलट चालू',tap_objects:'बोनस के लिए टैप करें!',expedition_success:'🎉 अभियान सफल!',expedition_fail:'💥 जहाज़ टूट गया!',collected:'एकत्रित',back_to_base:'बेस पर वापस',spin_title:'भाग्य चक्र',spin_btn:'🎰 घुमाएं!',spin_free:'24 घंटे में एक बार मुफ्त',spin_next:'अगला स्पिन',ob_welcome_title:'MarsX में आपका स्वागत!',ob_welcome_body:'आप एक अंतरतारकीय बेस के कमांडर हैं। ईंधन के लिए रॉकेट टैप करें।',ob_tap_title:'टैप और कॉम्बो',ob_tap_body:'तेज़ टैप से ×2 और ×3 कॉम्बो! 100% भरें।',ob_planet_title:'पहला अभियान',ob_planet_body:'चाँद सबसे सुरक्षित। केवल 8% जोखिम।',ob_miner_title:'खनिक और निष्क्रिय आय',ob_miner_body:'चाँद पर खनिक — ऑफलाइन भी GC कमाएं।',ob_bonus_title:'स्टार्टर बोनस!',ob_bonus_body:'आकाशगंगा जीतने के लिए तैयार! शुभकामनाएं।',ob_skip:'छोड़ें',ob_next:'अगला',ob_start:'गेम शुरू करें 🚀',ob_step:'में से',token_title:'MarsX Token (MXT)',token_phase:'फार्मिंग फेज',token_network:'Ethereum / BNB Chain',token_tge:'TGE (चैनल पर)',token_subscribe:'📣 सदस्यता लें',token_share:'👥 दोस्तों को बुलाएं',token_wallet_placeholder:'0x... EVM पता',token_connect_wallet:'🔗 वॉलेट कनेक्ट करें',loading:'लोड हो रहा है...',error_load:'लोड त्रुटि',wait_loading:'रुकें...',daily_claimed:'बोनस पहले ही लिया',daily_streak:'दिन लगातार'},
+};
+
+let _lang='en';
+function initLang(){
+  // 1. Ручной выбор пользователя
+  const saved = localStorage.getItem('marsx_lang');
+  if(saved && TRANSLATIONS[saved]){ _lang=saved; return; }
+  // 2. Язык из Telegram
+  const tgLang=(window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code||'').toLowerCase().slice(0,2);
+  const brLang=(navigator.language||'').toLowerCase().slice(0,2);
+  const raw=tgLang||brLang;
+  const map={ru:'ru',en:'en',es:'es',pt:'pt',hi:'hi',
+    mx:'es',ar:'es',co:'es',ve:'es',cl:'es',pe:'es',ec:'es',
+    br:'pt',bn:'hi',ta:'hi',te:'hi',mr:'hi',gu:'hi',kn:'hi',ml:'hi'};
+  _lang=map[raw]||'en';
+  console.log('[i18n] lang='+_lang+' raw='+raw);
+}
+function switchLang(lang){
+  _lang = lang;
+  localStorage.setItem('marsx_lang', lang);
+  applyTranslations();
+  document.getElementById('more-menu').style.display='none';
+  showToast(t('loading','...') + ' → ' + lang.toUpperCase());
+}
+
+function t(key,fallback){return(TRANSLATIONS[_lang]||TRANSLATIONS.en)[key]||fallback||key;}
+function applyTranslations(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{const v=t(el.getAttribute('data-i18n'));if(v)el.textContent=v;});
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{const v=t(el.getAttribute('data-i18n-ph'));if(v)el.placeholder=v;});
+}
+
 const BOT_USERNAME = 'MarsXRocketBot';
 
 const G = {
@@ -201,7 +242,7 @@ async function loadUserData(){
     else if(!G.dailyClaimedToday) setTimeout(showDailyBonus, 1200);
   } else {
     console.error('[loadUserData] ошибка:', res);
-    showToast('Ошибка загрузки данных — повтор через 3 сек');
+    showToast(t('error_load','Error loading data'));
     setTimeout(loadUserData, 3000);
   }
 }
@@ -377,7 +418,7 @@ function showDailyBonus(){
 }
 
 async function claimDaily(){
-  if(!G.tgId){showToast('Подожди — идёт загрузка...');return;}
+  if(!G.tgId){showToast(t('wait_loading','Please wait...'));return;}
   const res=await apiPost('/daily_claim');
   document.getElementById('daily-modal').style.display='none';
   if(res?.status==='success'){
@@ -927,6 +968,9 @@ function animateTap() {
 }
 
 function updateMainUI(){
+  // Обновляем токен баланс если экран открыт
+  const tb = document.getElementById('token-gc-balance');
+  if(tb) tb.textContent = Math.floor(G.gc||0).toLocaleString();
   document.getElementById('stat-fuel').innerHTML=`${Math.floor(G.fuel)} <span>F</span>`;
   document.getElementById('stat-gc').innerHTML=`${Math.floor(G.gc)} <span>GC</span>`;
   document.getElementById('stat-ci').innerHTML=`${Math.floor(G.ci)} <span>CI</span>`;
@@ -1205,7 +1249,7 @@ async function buyItem(iid){
   if(item.requires&&!G.inventory[item.requires]){showToast('Сначала купи: '+item.requires);return;}
   if(item.unique&&G.inventory[iid]){showToast('Уже куплено');return;}
   if(item.currency==='gc'){
-    if(G.gc<item.price){showToast('Недостаточно GC');return;}
+    if(G.gc<item.price){showToast(t('not_enough_gc','Not enough GC'));return;}
     G.gc-=item.price;
   }
   // Локальный эффект
@@ -1770,6 +1814,165 @@ function applyRocketSkin3D(skinKey) {
 }
 
 // ══════════════════════════════════════════
+//  MXT TOKEN
+// ══════════════════════════════════════════
+function showToken(){
+  document.getElementById('more-menu').style.display='none';
+  showScreen('token-screen');
+  // Показываем текущий баланс GC
+  const el = document.getElementById('token-gc-balance');
+  if(el) el.textContent = Math.floor(G.gc || 0).toLocaleString();
+}
+
+function openTelegramChannel(){
+  const url = 'https://t.me/MarsXRocketChannel'; // замени на свой канал
+  if(window.Telegram?.WebApp?.openTelegramLink){
+    Telegram.WebApp.openTelegramLink(url);
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
+function shareReferral(){
+  const uid = G.tgId || '';
+  const text = `🚀 Играю в MarsX Rocket и накапливаю GC для будущего MXT токена!\n\nПрисоединяйся — при TGE токены распределят между активными игроками.`;
+  const url  = `https://t.me/MarsXRocketBot?start=${uid}`;
+  if(window.Telegram?.WebApp?.openTelegramLink){
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+    Telegram.WebApp.openTelegramLink(shareUrl);
+  } else {
+    // Копируем в буфер
+    navigator.clipboard?.writeText(url + '\n\n' + text);
+    showToast('Ссылка скопирована!');
+  }
+}
+
+// ══════════════════════════════════════════
+//  SPLASH SCREEN
+// ══════════════════════════════════════════
+function showSplash(){
+  const splash = document.getElementById('splash-screen');
+  if(!splash) return;
+  splash.style.display='flex';
+  // Анимация прогресса
+  let p=0;
+  const bar = document.getElementById('splash-bar');
+  const interval = setInterval(()=>{
+    p += Math.random()*15 + 5;
+    if(p>=100){ p=100; clearInterval(interval);
+      setTimeout(()=>{
+        splash.style.opacity='0';
+        splash.style.transition='opacity .4s';
+        setTimeout(()=>splash.style.display='none', 400);
+      }, 300);
+    }
+    if(bar) bar.style.width = Math.min(p,100)+'%';
+  }, 120);
+}
+
+// ══════════════════════════════════════════
+//  ACTIVITY FEED — лента активности
+// ══════════════════════════════════════════
+const FEED_EVENTS = [];
+const FEED_TEMPLATES = [
+  (n,p)=>`🚀 ${n} долетел до ${p}`,
+  (n)=>`💰 ${n} собрал с майнера`,
+  (n,p)=>`⚔️ ${n} ограбил базу у ${p}`,
+  (n)=>`🎰 ${n} выиграл джекпот!`,
+  (n)=>`🏅 ${n} открыл достижение`,
+  (n,p)=>`🌍 ${n} основал колонию на ${p}`,
+  (n)=>`👑 ${n} купил Battle Pass`,
+];
+const PLANET_NAMES_FEED = ['Луны','Марса','Юпитера','Сатурна','Нептуна','Alpha Centauri'];
+const FAKE_NAMES = ['Александр','Игорь','Antonio','Maria','Дмитрий','Carlos','Вика','Max','Sunita','Pavel'];
+
+function generateFeedEvent(){
+  const n1 = FAKE_NAMES[Math.floor(Math.random()*FAKE_NAMES.length)];
+  const n2 = FAKE_NAMES[Math.floor(Math.random()*FAKE_NAMES.length)];
+  const p  = PLANET_NAMES_FEED[Math.floor(Math.random()*PLANET_NAMES_FEED.length)];
+  const t  = FEED_TEMPLATES[Math.floor(Math.random()*FEED_TEMPLATES.length)];
+  return { text: t(n1, p, n2), ts: Date.now() };
+}
+
+function initFeed(){
+  // Стартовые события
+  for(let i=0;i<4;i++) FEED_EVENTS.unshift(generateFeedEvent());
+  renderFeed();
+  // Новое событие каждые 15-45 секунд
+  function nextEvent(){
+    FEED_EVENTS.unshift(generateFeedEvent());
+    if(FEED_EVENTS.length>8) FEED_EVENTS.pop();
+    renderFeed();
+    setTimeout(nextEvent, 15000+Math.random()*30000);
+  }
+  setTimeout(nextEvent, 20000);
+}
+
+function renderFeed(){
+  const el = document.getElementById('activity-feed');
+  if(!el) return;
+  el.innerHTML = FEED_EVENTS.slice(0,5).map(e=>`
+    <div class="feed-item">
+      <span class="feed-text">${e.text}</span>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════
+//  STARTER PACK — стартовый пак
+// ══════════════════════════════════════════
+function checkStarterPack(){
+  // Показываем новым игрокам через 3 минуты
+  const shownKey = 'marsx_starter_shown';
+  if(localStorage.getItem(shownKey)) return;
+  if(!G.tgId) return;
+  // Только если мало GC и мало полётов — новичок
+  if(G.gc > 200 || (G.stats && G.stats.flights_total > 2)) return;
+  setTimeout(()=>{
+    if(localStorage.getItem(shownKey)) return;
+    showStarterPackModal();
+  }, 180000); // 3 минуты
+}
+
+function showStarterPackModal(){
+  const m = document.getElementById('starter-pack-modal');
+  if(m) m.style.display='flex';
+}
+
+function closeStarterPack(){
+  const m = document.getElementById('starter-pack-modal');
+  if(m) m.style.display='none';
+  localStorage.setItem('marsx_starter_shown','1');
+}
+
+async function buyStarterPack(){
+  // В реальности здесь Telegram Stars payment
+  // Пока показываем что можно купить
+  closeStarterPack();
+  showToast('⭐ Функция оплаты Stars будет добавлена скоро!');
+}
+
+// ══════════════════════════════════════════
+//  SOCIAL PRESSURE — «твой друг обогнал»
+// ══════════════════════════════════════════
+async function checkSocialPressure(){
+  if(!G.tgId || !G.ci) return;
+  const res = await apiGet('/leaderboard');
+  if(!res?.data?.players) return;
+  const myRank = res.data.players.findIndex(p=>p.telegram_id==G.tgId)+1;
+  const above  = res.data.players[myRank-2]; // игрок выше
+  if(above && above.ci - G.ci < 50 && above.ci > G.ci){
+    const el = document.getElementById('social-pressure-banner');
+    if(el){
+      el.querySelector('.sp-text').textContent =
+        `⚡ ${above.first_name} опережает тебя на ${above.ci-G.ci} CI — лети сейчас!`;
+      el.style.display='block';
+      setTimeout(()=>el.style.display='none', 8000);
+    }
+  }
+}
+
+
+// ══════════════════════════════════════════
 //  MORE MENU
 // ══════════════════════════════════════════
 function showMoreMenu(){
@@ -2181,6 +2384,40 @@ async function claimBP(level, rewardType, seasonId){
 const _origFinalizeFlight = finalizeFlight;
 
 // ══════════════════════════════════════════
+//  MXT TOKEN
+// ══════════════════════════════════════════
+function showToken(){
+  document.getElementById('more-menu').style.display='none';
+  showScreen('token-screen');
+  // Показываем текущий баланс GC
+  const el = document.getElementById('token-gc-balance');
+  if(el) el.textContent = Math.floor(G.gc || 0).toLocaleString();
+}
+
+function openTelegramChannel(){
+  const url = 'https://t.me/MarsXRocketChannel'; // замени на свой канал
+  if(window.Telegram?.WebApp?.openTelegramLink){
+    Telegram.WebApp.openTelegramLink(url);
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
+function shareReferral(){
+  const uid = G.tgId || '';
+  const text = `🚀 Играю в MarsX Rocket и накапливаю GC для будущего MXT токена!\n\nПрисоединяйся — при TGE токены распределят между активными игроками.`;
+  const url  = `https://t.me/MarsXRocketBot?start=${uid}`;
+  if(window.Telegram?.WebApp?.openTelegramLink){
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+    Telegram.WebApp.openTelegramLink(shareUrl);
+  } else {
+    // Копируем в буфер
+    navigator.clipboard?.writeText(url + '\n\n' + text);
+    showToast('Ссылка скопирована!');
+  }
+}
+
+// ══════════════════════════════════════════
 //  SPLASH SCREEN
 // ══════════════════════════════════════════
 function initSplash(){
@@ -2350,4 +2587,15 @@ function createStarsBg(){
     s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;width:${sz}px;height:${sz}px;opacity:${Math.random()*.4+.1};--d:${2+Math.random()*4}s;animation-delay:${Math.random()*3}s`;
     bg.appendChild(s);
   }
+}
+
+
+
+async function connectWallet(){
+  const addr = document.getElementById('wallet-input')?.value?.trim();
+  if(!addr || addr.length < 20){ showToast(t('token_wallet_placeholder','Enter wallet')); return; }
+  if(!addr.startsWith('0x')){ showToast('EVM адрес должен начинаться с 0x'); return; }
+  const res = await apiPost('/connect_wallet',{wallet_address: addr});
+  if(res?.status==='success') showToast('✅ ' + t('token_connect_wallet','Wallet connected'));
+  else showToast(res?.message||'Error');
 }
