@@ -216,6 +216,7 @@ async function loadUserData(){
   console.log('[loadUserData] запрос для', G.tgId);
   const res=await apiGet('/user_data');
   console.log('[loadUserData] ответ:', res?.status, res?.data);
+  hideSplash(); // скрываем splash как только получили ответ
   if(res?.status==='success'){
     const d=res.data;
     console.log('[loadUserData] GC:', d.gc_balance, 'Fuel:', d.fuel, 'Inventory:', JSON.stringify(d.inventory));
