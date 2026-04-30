@@ -243,8 +243,13 @@ async function loadUserData(){
     else if(!G.dailyClaimedToday) setTimeout(showDailyBonus, 1200);
   } else {
     console.error('[loadUserData] ошибка:', res);
-    showToast(t('error_load','Error loading data'));
-    setTimeout(loadUserData, 3000);
+    // Даже при ошибке — показываем игру с базовыми данными
+    // чтобы splash не висел вечно
+    if(G.fuel === 0) G.fuel = 80;
+    if(G.fuelMax === 0) G.fuelMax = 800;
+    updateMainUI();
+    // Пробуем перезагрузить через 5 сек
+    setTimeout(loadUserData, 5000);
   }
 }
 
