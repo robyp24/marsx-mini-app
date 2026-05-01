@@ -1,3 +1,125 @@
+// ══════════════════════════════════════════
+//  ФОНЫ — покупка и применение
+// ══════════════════════════════════════════
+
+const BG_NEBULA_CONFIGS = {
+  purple: { colors: ['rgba(80,20,120,0.12)','rgba(60,10,100,0.08)'] },
+  red:    { colors: ['rgba(120,20,10,0.15)','rgba(80,10,5,0.10)'] },
+  blue:   { colors: ['rgba(10,40,120,0.12)','rgba(5,20,80,0.08)'] },
+  dark:   { colors: ['rgba(20,5,40,0.20)','rgba(10,0,30,0.15)'] },
+  green:  { colors: ['rgba(10,80,40,0.12)','rgba(5,60,20,0.08)'] },
+  fire:   { colors: ['rgba(120,60,10,0.15)','rgba(80,20,5,0.10)'] },
+  deep:   { colors: ['rgba(5,5,20,0.20)','rgba(2,2,15,0.15)'] },
+};
+
+let activeBackground = null;
+
+async function renderBackgrounds(){
+  const list = document.getElementById('shop-items');
+  list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Загрузка...</div>';
+  document.getElementById('shop-gc-display').textContent = `${Math.floor(G.gc)} GC`;
+  const res = await apiGet('/backgrounds_info');
+  list.innerHTML = '';
+  if(!res || res.status !== 'success') {
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Ошибка загрузки</div>';
+    return;
+  }
+  res.data.backgrounds.forEach(bg => {
+    const div = document.createElement('div');
+    div.className = `shop-item ${bg.active ? 'owned' : ''}`;
+    div.style.cssText = 'position:relative;overflow:hidden';
+    // Превью цвета фона
+    const previewColor = bg.colors?.primary || '#07091a';
+    const starColor    = bg.colors?.stars   || '#4f8ef7';
+    let btnHtml;
+    if(bg.active) {
+      btnHtml = '<span class="shop-btn owned-btn">✓ Активен</span>';
+    } else if(bg.owned) {
+      btnHtml = `<button class="shop-btn" onclick="equipBg('${bg.id}')">Надеть</button>`;
+    } else if(bg.currency === 'stars') {
+      btnHtml = `<button class="shop-btn" onclick="buyBg('${bg.id}')">⭐ ${bg.price}</button>`;
+    } else {
+      btnHtml = `<button class="shop-btn ${G.gc >= bg.price ? '' : 'owned-btn'}" onclick="buyBg('${bg.id}')">💰 ${bg.price} GC</button>`;
+    }
+    div.innerHTML = `
+      <div class="shop-icon" style="background:${previewColor};border:2px solid ${starColor};font-size:26px">
+        ${bg.emoji}
+      </div>
+      <div class="shop-info">
+        <div class="shop-name">${bg.name}</div>
+        <div class="shop-desc">${bg.desc}</div>
+        <div class="shop-price gc">${bg.currency === 'stars' ? '⭐ Stars' : '💰 GC'}: ${bg.price === 0 ? 'Бесплатно' : bg.price}</div>
+      </div>
+      ${btnHtml}`;
+    list.appendChild(div);
+  });
+}
+
+async function buyBg(bgId){
+  const res = await apiPost('/buy_background', {bg_id: bgId});
+  if(res?.status === 'success'){
+    showToast('✅ ' + res.data.message);
+    G.gc -= 0; // обновится при следующем loadUserData
+    applyBackground(res.data.colors, bgId);
+    await loadUserData();
+    renderBackgrounds();
+  } else {
+    showToast(res?.message || 'Ошибка покупки');
+  }
+}
+
+async function equipBg(bgId){
+  const res = await apiPost('/equip_background', {bg_id: bgId});
+  if(res?.status === 'success'){
+    showToast('🎨 ' + res.data.message);
+    applyBackground(res.data.colors, bgId);
+    renderBackgrounds();
+  } else {
+    showToast(res?.message || 'Ошибка');
+  }
+}
+
+function applyBackground(colors, bgId){
+  if(!colors) return;
+  activeBackground = {colors, bgId};
+  // Меняем CSS переменные
+  const root = document.documentElement;
+  root.style.setProperty('--bg',  colors.primary   || '#07091a');
+  root.style.setProperty('--bg2', colors.secondary  || '#0d1228');
+  root.style.setProperty('--bg3', adjustColor(colors.secondary || '#0d1228', 10));
+  // Обновляем цвет звёзд
+  document.querySelectorAll('.star-dot').forEach(s => {
+    s.style.background = colors.stars || '#fff';
+  });
+  // Применяем туманность если есть Three.js сцена
+  if(tapScene && THREE && colors.nebula){
+    const nebConfig = BG_NEBULA_CONFIGS[colors.nebula];
+    if(nebConfig) {
+      // Меняем фон сцены
+      const c = new THREE.Color(colors.primary || '#07091a');
+      tapScene.background = c;
+      tapScene.fog = new THREE.FogExp2(c, 0.04);
+    }
+  }
+}
+
+function adjustColor(hex, amount){
+  try{
+    const r = parseInt(hex.slice(1,3),16);
+    const g = parseInt(hex.slice(3,5),16);
+    const b = parseInt(hex.slice(5,7),16);
+    return `rgb(${Math.min(255,r+amount)},${Math.min(255,g+amount)},${Math.min(255,b+amount)})`;
+  }catch{return hex;}
+}
+
+// Загружаем активный фон при старте
+async function loadActiveBackground(){
+  const res = await apiGet('/backgrounds_info');
+  if(res?.status === 'success' && res.data.active && res.data.active !== 'bg_default'){
+    const activeBg = res.data.backgrounds.find(b => b.active);
+    if(activeBg) applyBackground(activeBg.colors, activeBg.id);
+  }
+}
 // ═══════════════════════════════════════════
 //  MarsX script.js — полная версия
 // ═══════════════════════════════════════════
@@ -168,23 +290,13 @@ function initTelegram(){
   }
   const tg=window.Telegram.WebApp;
   tg.expand();
-  try{ tg.setHeaderColor('#07091a'); } catch(e){}
-  try{ tg.setBackgroundColor('#07091a'); } catch(e){}
+  tg.setHeaderColor('#07091a');
+  tg.setBackgroundColor('#07091a');
   G.tgUser  = tg.initDataUnsafe?.user || {first_name:'Командор',id:0};
-  G.tgId    = G.tgUser.id || null;
+  G.tgId    = G.tgUser.id;
   G.initData = tg.initData || '';
-  // Если user не пришёл сразу — ждём чуть-чуть и пробуем снова
-  if(!G.tgId){
-    setTimeout(()=>{
-      G.tgUser = tg.initDataUnsafe?.user || {first_name:'Командор',id:12345};
-      G.tgId   = G.tgUser.id || 12345;
-      applyUserUI();
-      loadUserData();
-    }, 300);
-  } else {
-    applyUserUI();
-    loadUserData();
-  }
+  applyUserUI();
+  loadUserData();
 }
 
 function applyUserUI(){
@@ -219,25 +331,13 @@ async function apiGet(path){
 
 async function loadUserData(){
   if(!G.tgId){
-    // Если нет tgId — ждём максимум 3 сек потом показываем игру с тест ID
-    if(!loadUserData._retries) loadUserData._retries = 0;
-    loadUserData._retries++;
-    if(loadUserData._retries > 6){
-      // 3 секунды прошло — открываем в браузере с тест данными
-      console.warn('[loadUserData] tgId так и не появился — используем тест режим');
-      G.tgId = 12345;
-      G.tgUser = {first_name: 'Тест', id: 12345};
-      loadUserData._retries = 0;
-    } else {
-      console.warn('[loadUserData] tgId not ready, retry in 500ms');
-      setTimeout(loadUserData, 500);
-      return;
-    }
+    console.warn('[loadUserData] tgId not ready, retry in 500ms');
+    setTimeout(loadUserData, 500);
+    return;
   }
   console.log('[loadUserData] запрос для', G.tgId);
   const res=await apiGet('/user_data');
   console.log('[loadUserData] ответ:', res?.status, res?.data);
-  hideSplash(); // скрываем splash как только получили ответ
   if(res?.status==='success'){
     const d=res.data;
     console.log('[loadUserData] GC:', d.gc_balance, 'Fuel:', d.fuel, 'Inventory:', JSON.stringify(d.inventory));
@@ -260,17 +360,13 @@ async function loadUserData(){
     }
     if(d.autopilot_result) showAutopilotResult(d.autopilot_result);
     updateMainUI();
+    loadActiveBackground();
     if(!G.onboardingDone) setTimeout(startOnboarding, 800);
     else if(!G.dailyClaimedToday) setTimeout(showDailyBonus, 1200);
   } else {
     console.error('[loadUserData] ошибка:', res);
-    // Даже при ошибке — показываем игру с базовыми данными
-    // чтобы splash не висел вечно
-    if(G.fuel === 0) G.fuel = 80;
-    if(G.fuelMax === 0) G.fuelMax = 800;
-    updateMainUI();
-    // Пробуем перезагрузить через 5 сек
-    setTimeout(loadUserData, 5000);
+    showToast(t('error_load','Error loading data'));
+    setTimeout(loadUserData, 3000);
   }
 }
 
@@ -1243,9 +1339,10 @@ async function finalizeFlight(planet){
 function setShopTab(tab){
   G.shopTab=tab;
   document.querySelectorAll('.shop-tab').forEach((t,i)=>{
-    const tabs=['boosters','parts','weapons','autopilot'];
+    const tabs=['boosters','parts','weapons','autopilot','backgrounds'];
     t.classList.toggle('active',tabs[i]===tab);
   });
+  if(tab==='backgrounds') { renderBackgrounds(); return; }
   renderShop();
 }
 function renderShop(){
@@ -2448,31 +2545,60 @@ function shareReferral(){
 //  SPLASH SCREEN
 // ══════════════════════════════════════════
 function initSplash(){
-  const el = document.getElementById('splash-screen');
-  if(!el) return;
-  el.style.display    = 'flex';
-  el.style.opacity    = '1';
-  el.style.transition = 'none';
-  const bar = document.getElementById('splash-bar');
-  let p = 0;
-  const iv = setInterval(()=>{
-    p += Math.random() * 20 + 10;
-    if(bar) bar.style.width = Math.min(p, 95) + '%';
-    if(p >= 95) clearInterval(iv);
-  }, 80);
-  setTimeout(hideSplash, 2000);
+  const canvas = document.getElementById('splash-canvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W=200, H=200, cx=W/2, cy=H/2;
+  let f=0, launched=false;
+  let rocketY = cy+20;
+
+  function drawSplash(){
+    f++;
+    ctx.fillStyle='#07091a'; ctx.fillRect(0,0,W,H);
+
+    // Stars
+    if(!drawSplash._s){ drawSplash._s=[]; for(let i=0;i<50;i++) drawSplash._s.push({x:Math.random()*W,y:Math.random()*H,r:.3+Math.random(),o:.1+Math.random()*.5}); }
+    for(const s of drawSplash._s){ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${s.o+Math.sin(f*.04+s.x)*.05})`;ctx.fill();}
+
+    if(f>40 && !launched){
+      launched=true;
+      // Анимация взлёта
+    }
+    if(launched) rocketY -= 1.5;
+
+    // Rocket
+    ctx.save(); ctx.translate(cx, rocketY); ctx.scale(.7,.7);
+    // Flame
+    const fl=12+Math.sin(f*.3)*5;
+    const fg=ctx.createLinearGradient(0,90,0,90+fl);
+    fg.addColorStop(0,'rgba(140,180,255,.95)'); fg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.beginPath(); ctx.moveTo(-6,90); ctx.lineTo(0,90+fl); ctx.lineTo(6,90); ctx.fillStyle=fg; ctx.fill();
+    // Body
+    ctx.beginPath(); ctx.moveTo(0,-68); ctx.lineTo(13,40); ctx.lineTo(13,88); ctx.lineTo(-13,88); ctx.lineTo(-13,40); ctx.closePath();
+    const bg=ctx.createLinearGradient(-13,0,13,0); bg.addColorStop(0,'#8aaac8'); bg.addColorStop(.5,'#eef8ff'); bg.addColorStop(1,'#6888a0');
+    ctx.fillStyle=bg; ctx.fill(); ctx.strokeStyle='#7090ae'; ctx.lineWidth=.8; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,-68); ctx.lineTo(13,40); ctx.lineTo(-13,40); ctx.closePath(); ctx.fillStyle='#d0e8f8'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0,-12,8,11,0,0,Math.PI*2); ctx.fillStyle='rgba(100,180,255,.8)'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-13,50); ctx.lineTo(-28,80); ctx.lineTo(-28,88); ctx.lineTo(-13,85); ctx.closePath(); ctx.fillStyle='#8aaac8'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(13,50); ctx.lineTo(28,80); ctx.lineTo(28,88); ctx.lineTo(13,85); ctx.closePath(); ctx.fillStyle='#8aaac8'; ctx.fill();
+    ctx.restore();
+
+    if(rocketY < -50){
+      hideSplash(); return;
+    }
+    requestAnimationFrame(drawSplash);
+  }
+  drawSplash();
+
+  // Автоскрытие через 2.5 сек
+  setTimeout(hideSplash, 2500);
 }
 
 function hideSplash(){
   const el = document.getElementById('splash-screen');
   if(!el || el.style.display==='none') return;
-  const bar = document.getElementById('splash-bar');
-  if(bar) bar.style.width = '100%';
-  setTimeout(()=>{
-    el.style.opacity    = '0';
-    el.style.transition = 'opacity 0.4s ease';
-    setTimeout(()=>{ el.style.display = 'none'; }, 420);
-  }, 100);
+  el.style.opacity='0';
+  setTimeout(()=>{ el.style.display='none'; }, 500);
 }
 
 // ══════════════════════════════════════════
