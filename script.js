@@ -114,6 +114,7 @@ function adjustColor(hex, amount){
 
 // Загружаем активный фон при старте
 async function loadActiveBackground(){
+  if(!G.tgId) return; // не вызываем без tgId
   const res = await apiGet('/backgrounds_info');
   if(res?.status === 'success' && res.data.active && res.data.active !== 'bg_default'){
     const activeBg = res.data.backgrounds.find(b => b.active);
@@ -2545,60 +2546,31 @@ function shareReferral(){
 //  SPLASH SCREEN
 // ══════════════════════════════════════════
 function initSplash(){
-  const canvas = document.getElementById('splash-canvas');
-  if(!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const W=200, H=200, cx=W/2, cy=H/2;
-  let f=0, launched=false;
-  let rocketY = cy+20;
-
-  function drawSplash(){
-    f++;
-    ctx.fillStyle='#07091a'; ctx.fillRect(0,0,W,H);
-
-    // Stars
-    if(!drawSplash._s){ drawSplash._s=[]; for(let i=0;i<50;i++) drawSplash._s.push({x:Math.random()*W,y:Math.random()*H,r:.3+Math.random(),o:.1+Math.random()*.5}); }
-    for(const s of drawSplash._s){ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${s.o+Math.sin(f*.04+s.x)*.05})`;ctx.fill();}
-
-    if(f>40 && !launched){
-      launched=true;
-      // Анимация взлёта
-    }
-    if(launched) rocketY -= 1.5;
-
-    // Rocket
-    ctx.save(); ctx.translate(cx, rocketY); ctx.scale(.7,.7);
-    // Flame
-    const fl=12+Math.sin(f*.3)*5;
-    const fg=ctx.createLinearGradient(0,90,0,90+fl);
-    fg.addColorStop(0,'rgba(140,180,255,.95)'); fg.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.beginPath(); ctx.moveTo(-6,90); ctx.lineTo(0,90+fl); ctx.lineTo(6,90); ctx.fillStyle=fg; ctx.fill();
-    // Body
-    ctx.beginPath(); ctx.moveTo(0,-68); ctx.lineTo(13,40); ctx.lineTo(13,88); ctx.lineTo(-13,88); ctx.lineTo(-13,40); ctx.closePath();
-    const bg=ctx.createLinearGradient(-13,0,13,0); bg.addColorStop(0,'#8aaac8'); bg.addColorStop(.5,'#eef8ff'); bg.addColorStop(1,'#6888a0');
-    ctx.fillStyle=bg; ctx.fill(); ctx.strokeStyle='#7090ae'; ctx.lineWidth=.8; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0,-68); ctx.lineTo(13,40); ctx.lineTo(-13,40); ctx.closePath(); ctx.fillStyle='#d0e8f8'; ctx.fill();
-    ctx.beginPath(); ctx.ellipse(0,-12,8,11,0,0,Math.PI*2); ctx.fillStyle='rgba(100,180,255,.8)'; ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-13,50); ctx.lineTo(-28,80); ctx.lineTo(-28,88); ctx.lineTo(-13,85); ctx.closePath(); ctx.fillStyle='#8aaac8'; ctx.fill();
-    ctx.beginPath(); ctx.moveTo(13,50); ctx.lineTo(28,80); ctx.lineTo(28,88); ctx.lineTo(13,85); ctx.closePath(); ctx.fillStyle='#8aaac8'; ctx.fill();
-    ctx.restore();
-
-    if(rocketY < -50){
-      hideSplash(); return;
-    }
-    requestAnimationFrame(drawSplash);
-  }
-  drawSplash();
-
-  // Автоскрытие через 2.5 сек
-  setTimeout(hideSplash, 2500);
+  const el = document.getElementById('splash-screen');
+  if(!el) return;
+  el.style.display    = 'flex';
+  el.style.opacity    = '1';
+  el.style.transition = 'none';
+  const bar = document.getElementById('splash-bar');
+  let p = 0;
+  const iv = setInterval(()=>{
+    p += Math.random() * 20 + 10;
+    if(bar) bar.style.width = Math.min(p, 95) + '%';
+    if(p >= 95) clearInterval(iv);
+  }, 80);
+  setTimeout(hideSplash, 2000);
 }
 
 function hideSplash(){
   const el = document.getElementById('splash-screen');
   if(!el || el.style.display==='none') return;
-  el.style.opacity='0';
-  setTimeout(()=>{ el.style.display='none'; }, 500);
+  const bar = document.getElementById('splash-bar');
+  if(bar) bar.style.width = '100%';
+  setTimeout(()=>{
+    el.style.opacity    = '0';
+    el.style.transition = 'opacity 0.4s ease';
+    setTimeout(()=>{ el.style.display = 'none'; }, 420);
+  }, 100);
 }
 
 // ══════════════════════════════════════════
