@@ -3,16 +3,134 @@
 // ══════════════════════════════════════════
 
 const BG_NEBULA_CONFIGS = {
-  purple: { colors: ['rgba(80,20,120,0.12)','rgba(60,10,100,0.08)'] },
-  red:    { colors: ['rgba(120,20,10,0.15)','rgba(80,10,5,0.10)'] },
-  blue:   { colors: ['rgba(10,40,120,0.12)','rgba(5,20,80,0.08)'] },
-  dark:   { colors: ['rgba(20,5,40,0.20)','rgba(10,0,30,0.15)'] },
-  green:  { colors: ['rgba(10,80,40,0.12)','rgba(5,60,20,0.08)'] },
-  fire:   { colors: ['rgba(120,60,10,0.15)','rgba(80,20,5,0.10)'] },
-  deep:   { colors: ['rgba(5,5,20,0.20)','rgba(2,2,15,0.15)'] },
+  purple: { clouds: ['rgba(120,40,200,0.18)','rgba(80,20,160,0.12)','rgba(160,60,220,0.10)'] },
+  red:    { clouds: ['rgba(200,40,20,0.20)','rgba(160,20,10,0.14)','rgba(220,80,40,0.10)'] },
+  blue:   { clouds: ['rgba(20,80,200,0.18)','rgba(10,50,160,0.12)','rgba(40,120,220,0.10)'] },
+  dark:   { clouds: ['rgba(60,10,120,0.25)','rgba(40,5,80,0.18)','rgba(80,20,140,0.12)'] },
+  green:  { clouds: ['rgba(20,160,80,0.18)','rgba(10,120,50,0.12)','rgba(40,200,100,0.10)'] },
+  fire:   { clouds: ['rgba(220,100,20,0.22)','rgba(180,50,10,0.16)','rgba(240,150,40,0.12)'] },
+  deep:   { clouds: ['rgba(10,10,60,0.25)','rgba(5,5,40,0.18)','rgba(20,20,80,0.12)'] },
 };
 
 let activeBackground = null;
+let bgAnimFrame = null;
+let bgCanvas = null;
+let bgCtx = null;
+let bgParticles = [];
+
+function initBgCanvas(){
+  bgCanvas = document.createElement('canvas');
+  bgCanvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none';
+  bgCanvas.width  = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
+  document.getElementById('stars-bg').appendChild(bgCanvas);
+  bgCtx = bgCanvas.getContext('2d');
+  window.addEventListener('resize', ()=>{
+    bgCanvas.width  = window.innerWidth;
+    bgCanvas.height = window.innerHeight;
+  });
+}
+
+function animateBg(colors, nebulaType){
+  if(bgAnimFrame) cancelAnimationFrame(bgAnimFrame);
+  if(!bgCanvas) initBgCanvas();
+  const W = bgCanvas.width, H = bgCanvas.height;
+  const nebConf = BG_NEBULA_CONFIGS[nebulaType] || null;
+  
+  // Генерируем звёзды
+  const stars = [];
+  const starCount = 200;
+  const starColor = colors.stars || '#4f8ef7';
+  for(let i=0;i<starCount;i++){
+    stars.push({
+      x: Math.random()*W, y: Math.random()*H,
+      r: Math.random()*1.5+0.3,
+      o: Math.random()*0.6+0.2,
+      speed: Math.random()*0.3+0.05,
+      twinkle: Math.random()*Math.PI*2,
+    });
+  }
+  
+  // Облака туманности
+  const clouds = [];
+  if(nebConf){
+    for(let i=0;i<6;i++){
+      clouds.push({
+        x: Math.random()*W, y: Math.random()*H,
+        r: 80+Math.random()*150,
+        color: nebConf.clouds[i%nebConf.clouds.length],
+        dx: (Math.random()-0.5)*0.15,
+        dy: (Math.random()-0.5)*0.10,
+        pulse: Math.random()*Math.PI*2,
+      });
+    }
+  }
+
+  let frame = 0;
+  function draw(){
+    frame++;
+    bgCtx.clearRect(0,0,W,H);
+    
+    // Фон градиент
+    const grd = bgCtx.createLinearGradient(0,0,W,H);
+    grd.addColorStop(0, colors.primary   || '#07091a');
+    grd.addColorStop(1, colors.secondary || '#0d1228');
+    bgCtx.fillStyle = grd;
+    bgCtx.fillRect(0,0,W,H);
+    
+    // Туманность
+    clouds.forEach(c=>{
+      c.x += c.dx; c.y += c.dy;
+      c.pulse += 0.008;
+      if(c.x < -c.r) c.x = W+c.r;
+      if(c.x > W+c.r) c.x = -c.r;
+      if(c.y < -c.r) c.y = H+c.r;
+      if(c.y > H+c.r) c.y = -c.r;
+      const pulse = 1 + Math.sin(c.pulse)*0.15;
+      const g = bgCtx.createRadialGradient(c.x,c.y,0,c.x,c.y,c.r*pulse);
+      g.addColorStop(0, c.color);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      bgCtx.fillStyle = g;
+      bgCtx.beginPath();
+      bgCtx.arc(c.x,c.y,c.r*pulse,0,Math.PI*2);
+      bgCtx.fill();
+    });
+    
+    // Звёзды
+    stars.forEach(s=>{
+      s.twinkle += s.speed*0.05;
+      const opacity = s.o + Math.sin(s.twinkle)*0.3;
+      bgCtx.beginPath();
+      bgCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      bgCtx.fillStyle = starColor.replace(')',`,${Math.max(0,Math.min(1,opacity))})`).replace('rgb(','rgba(').replace('#','');
+      // Парсим hex цвет
+      const hex = starColor.replace('#','');
+      if(hex.length===6){
+        const r=parseInt(hex.slice(0,2),16);
+        const g=parseInt(hex.slice(2,4),16);
+        const b=parseInt(hex.slice(4,6),16);
+        bgCtx.fillStyle = `rgba(${r},${g},${b},${Math.max(0,Math.min(1,opacity))})`;
+      } else {
+        bgCtx.fillStyle = starColor;
+      }
+      bgCtx.fill();
+      // Блик для ярких звёзд
+      if(s.r > 1.2 && opacity > 0.7){
+        bgCtx.strokeStyle = bgCtx.fillStyle;
+        bgCtx.lineWidth = 0.5;
+        bgCtx.beginPath();
+        bgCtx.moveTo(s.x-s.r*3,s.y);
+        bgCtx.lineTo(s.x+s.r*3,s.y);
+        bgCtx.moveTo(s.x,s.y-s.r*3);
+        bgCtx.lineTo(s.x,s.y+s.r*3);
+        bgCtx.stroke();
+      }
+    });
+    
+    bgAnimFrame = requestAnimationFrame(draw);
+  }
+  draw();
+}
 
 async function renderBackgrounds(){
   const list = document.getElementById('shop-items');
@@ -82,24 +200,32 @@ async function equipBg(bgId){
 function applyBackground(colors, bgId){
   if(!colors) return;
   activeBackground = {colors, bgId};
-  // Меняем CSS переменные
+  // Запускаем анимированный фон
+  animateBg(colors, colors.nebula || null);
+  // Меняем CSS переменные для UI
   const root = document.documentElement;
   root.style.setProperty('--bg',  colors.primary   || '#07091a');
   root.style.setProperty('--bg2', colors.secondary  || '#0d1228');
   root.style.setProperty('--bg3', adjustColor(colors.secondary || '#0d1228', 10));
-  // Обновляем цвет звёзд
-  document.querySelectorAll('.star-dot').forEach(s => {
-    s.style.background = colors.stars || '#fff';
-  });
-  // Применяем туманность если есть Three.js сцена
-  if(tapScene && THREE && colors.nebula){
-    const nebConfig = BG_NEBULA_CONFIGS[colors.nebula];
-    if(nebConfig) {
-      // Меняем фон сцены
-      const c = new THREE.Color(colors.primary || '#07091a');
-      tapScene.background = c;
-      tapScene.fog = new THREE.FogExp2(c, 0.04);
-    }
+  root.style.setProperty('--card', adjustColor(colors.primary || '#07091a', 15));
+  // Обновляем Three.js сцену
+  if(tapScene && THREE){
+    const c = new THREE.Color(colors.primary || '#07091a');
+    tapScene.background = c;
+    tapScene.fog = new THREE.FogExp2(colors.primary || '#07091a', 0.04);
+    if(engLight) engLight.color = new THREE.Color(colors.stars || '#4488ff');
+  }
+  // Обновляем Three.js сцену
+  if(tapScene && THREE){
+    const c = new THREE.Color(colors.primary || '#07091a');
+    tapScene.background = c;
+    tapScene.fog = new THREE.FogExp2(colors.primary || '#07091a', 0.04);
+    if(engLight) engLight.color = new THREE.Color(colors.stars || '#4488ff');
+  }
+  // Скрываем стандартные звёзды (заменены canvas)
+  const starsBg = document.getElementById('stars-bg');
+  if(starsBg) {
+    starsBg.querySelectorAll('.star-dot').forEach(s=>s.style.opacity='0');
   }
 }
 
@@ -291,13 +417,22 @@ function initTelegram(){
   }
   const tg=window.Telegram.WebApp;
   tg.expand();
-  tg.setHeaderColor('#07091a');
-  tg.setBackgroundColor('#07091a');
-  G.tgUser  = tg.initDataUnsafe?.user || {first_name:'Командор',id:0};
-  G.tgId    = G.tgUser.id;
+  try{ tg.setHeaderColor('#07091a'); } catch(e){}
+  try{ tg.setBackgroundColor('#07091a'); } catch(e){}
+  G.tgUser   = tg.initDataUnsafe?.user || {first_name:'Командор',id:0};
+  G.tgId     = G.tgUser.id || null;
   G.initData = tg.initData || '';
   applyUserUI();
-  loadUserData();
+  if(!G.tgId){
+    setTimeout(()=>{
+      G.tgUser = tg.initDataUnsafe?.user || {first_name:'Командор',id:12345};
+      G.tgId   = G.tgUser.id || 12345;
+      applyUserUI();
+      loadUserData();
+    }, 300);
+  } else {
+    loadUserData();
+  }
 }
 
 function applyUserUI(){
@@ -332,13 +467,23 @@ async function apiGet(path){
 
 async function loadUserData(){
   if(!G.tgId){
-    console.warn('[loadUserData] tgId not ready, retry in 500ms');
-    setTimeout(loadUserData, 500);
-    return;
+    if(!loadUserData._retries) loadUserData._retries = 0;
+    loadUserData._retries++;
+    if(loadUserData._retries > 6){
+      console.warn('[loadUserData] tgId не появился — тест режим');
+      G.tgId = 12345;
+      G.tgUser = {first_name:'Командор', id:12345};
+      loadUserData._retries = 0;
+    } else {
+      console.warn('[loadUserData] tgId not ready, retry in 500ms');
+      setTimeout(loadUserData, 500);
+      return;
+    }
   }
   console.log('[loadUserData] запрос для', G.tgId);
   const res=await apiGet('/user_data');
   console.log('[loadUserData] ответ:', res?.status, res?.data);
+  hideSplash();
   if(res?.status==='success'){
     const d=res.data;
     console.log('[loadUserData] GC:', d.gc_balance, 'Fuel:', d.fuel, 'Inventory:', JSON.stringify(d.inventory));
@@ -831,12 +976,25 @@ function buildRocket3D(inv) {
   const bW = hasTank ? 0.56 : 0.44;
   const bH = 3.0 + (hasTank ? 0.2 : 0) + (hasE2 ? 0.25 : 0);
 
+  // Скин определяет цвета
+  const skinKey = inv._activeSkin || (G.inventory?._activeSkin) || 'default';
+  const SKIN_PALETTE = {
+    default: { body: 0x9ab8d0, nose: 0xc8e4f8, accent: 0x4f8ef7, emissive: 0x0a1830, stripe: 0x4f8ef7 },
+    gold:    { body: 0xd4a820, nose: 0xffe566, accent: 0xf5c518, emissive: 0x2a1800, stripe: 0xf5c518 },
+    stealth: { body: 0x1a1a2e, nose: 0x2a2a3e, accent: 0x7c5cfc, emissive: 0x050510, stripe: 0x7c5cfc },
+    fire:    { body: 0xc0392b, nose: 0xff6b5b, accent: 0xe74c3c, emissive: 0x2a0000, stripe: 0xff4500 },
+    galaxy:  { body: 0x5a3ccc, nose: 0x9b7dfa, accent: 0x7c5cfc, emissive: 0x10003a, stripe: 0xb39dfa },
+    neptune: { body: 0x0e6a9a, nose: 0x50c8ff, accent: 0x1a8abf, emissive: 0x001520, stripe: 0x70d0ff },
+  };
+  const pal = SKIN_PALETTE[skinKey] || SKIN_PALETTE.default;
+
   // Materials
-  const bMat = new THREE.MeshStandardMaterial({ color: hasE2 ? 0x607898 : hasE1 ? 0x7090b0 : 0x9ab8d0, metalness: 0.75, roughness: 0.22 });
-  const nMat = new THREE.MeshStandardMaterial({ color: hasE2 ? 0x90b0cc : 0xc8e4f8, metalness: 0.6, roughness: 0.18 });
+  const bMat = new THREE.MeshStandardMaterial({ color: pal.body, metalness: 0.80, roughness: 0.18, emissive: pal.emissive, emissiveIntensity: 0.3 });
+  const nMat = new THREE.MeshStandardMaterial({ color: pal.nose, metalness: 0.65, roughness: 0.15 });
+  const strMat = new THREE.MeshStandardMaterial({ color: pal.stripe, emissive: pal.accent, emissiveIntensity: 0.8 });
   const dkMat = new THREE.MeshStandardMaterial({ color: 0x2a3a58, metalness: 0.88, roughness: 0.25 });
   const glMat = new THREE.MeshStandardMaterial({ color: 0x88ccff, emissive: 0x2266bb, emissiveIntensity: 0.9, transparent: true, opacity: 0.82, roughness: 0.05 });
-  const strMat = new THREE.MeshStandardMaterial({ color: 0x4f8ef7, emissive: 0x1133cc, emissiveIntensity: 0.6 });
+  // strMat уже определён выше через палитру скина
   const rMat = new THREE.MeshStandardMaterial({ color: 0xe74c3c, metalness: 0.55, roughness: 0.32, emissive: 0x440000, emissiveIntensity: 0.3 });
   const gMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x006622, emissiveIntensity: 0.8 });
   const pMat = new THREE.MeshStandardMaterial({ color: 0x9b59b6, emissive: 0x220044, emissiveIntensity: 0.5 });
@@ -987,11 +1145,22 @@ function buildRocket3D(inv) {
 function spawnExhaust3D(pos) {
   if (!THREE || !tapScene) return;
   const geo = new THREE.SphereGeometry(0.05 + Math.random() * 0.04, 5, 5);
+  // Цвет выхлопа зависит от скина
+  const skinKey = G.inventory?._activeSkin || 'default';
+  const exhaustColors = {
+    default: [0.2+Math.random()*0.2, 0.4+Math.random()*0.2, 1.0],
+    gold:    [1.0, 0.7+Math.random()*0.3, 0.1],
+    stealth: [0.5+Math.random()*0.3, 0.2, 1.0],
+    fire:    [1.0, 0.3+Math.random()*0.3, 0.0],
+    galaxy:  [0.6+Math.random()*0.4, 0.2, 1.0],
+    neptune: [0.0, 0.6+Math.random()*0.4, 1.0],
+  };
+  const ec = exhaustColors[skinKey] || exhaustColors.default;
   const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0.25 + Math.random() * 0.2, 0.35 + Math.random() * 0.2, 1.0),
-    emissive: new THREE.Color(0.05, 0.1, 0.5),
-    emissiveIntensity: 1.5,
-    transparent: true, opacity: 0.85
+    color: new THREE.Color(ec[0], ec[1], ec[2]),
+    emissive: new THREE.Color(ec[0]*0.3, ec[1]*0.3, ec[2]*0.5),
+    emissiveIntensity: 2.0,
+    transparent: true, opacity: 0.9
   });
   const p = new THREE.Mesh(geo, mat);
   p.position.set(pos.x + (Math.random() - 0.5) * 0.1, pos.y, pos.z + (Math.random() - 0.5) * 0.1);
@@ -2689,7 +2858,8 @@ function createStarsBg(){
 
 async function connectWallet(){
   const addr = document.getElementById('wallet-input')?.value?.trim();
-  if(!addr || addr.length < 20){ showToast(t('token_wallet_placeholder','Enter wallet')); return; }
+  if(!addr || addr.length < 20){ showToast('Введи EVM адрес'); return; }
+  if(!addr.startsWith('0x')){ showToast('EVM адрес должен начинаться с 0x'); return; }
   if(!addr.startsWith('0x')){ showToast('EVM адрес должен начинаться с 0x'); return; }
   const res = await apiPost('/connect_wallet',{wallet_address: addr});
   if(res?.status==='success') showToast('✅ ' + t('token_connect_wallet','Wallet connected'));
