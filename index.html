@@ -33,7 +33,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .stat-val span{font-size:9px;color:var(--muted);font-weight:400}
 
 /* TAP AREA */
-.tap-area{flex:1;display:flex;align-items:center;justify-content:center;position:relative;z-index:2}
+.tap-area{flex:1;display:flex;align-items:stretch;position:relative;z-index:2;overflow:hidden}
 .combo-wrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:10}
 .combo-display{font-size:30px;font-weight:900;color:var(--gold);text-shadow:0 0 24px rgba(245,197,24,.7);opacity:0;transition:opacity .25s;white-space:nowrap}
 .combo-display.show{opacity:1}
@@ -91,8 +91,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .flight-top{padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
 .flight-dest{font-size:14px;font-weight:600;color:rgba(255,255,255,.8)}
 .flight-timer{font-size:22px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 0 20px rgba(79,142,247,.8)}
-.flight-events{display:flex;flex-direction:column;justify-content:flex-end;padding:0 16px 110px;gap:6px;flex:1;overflow:hidden}
-.event-msg{font-size:13px;padding:8px 12px;border-radius:10px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.1);color:#fff;animation:slide-in .3s ease-out}
+.flight-events{position:absolute;bottom:70px;left:12px;right:12px;display:flex;flex-direction:column;gap:5px;pointer-events:none;z-index:3}
+.event-msg{font-size:11px;padding:5px 10px;border-radius:8px;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.85);animation:slide-in .25s ease-out;backdrop-filter:blur(4px)}
 @keyframes slide-in{from{transform:translateX(-16px);opacity:0}to{transform:translateX(0);opacity:1}}
 .event-msg.good{border-color:rgba(46,204,113,.5);color:#7fffa8}
 .event-msg.bad{border-color:rgba(231,76,60,.5);color:#ff9a9a}
@@ -201,27 +201,97 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .ob-body{font-size:14px;color:var(--muted);text-align:center;line-height:1.65;margin-bottom:24px}
 .ob-dots{display:flex;gap:6px;justify-content:center;margin-bottom:20px}
 .ob-btn{width:100%;padding:15px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;font-family:var(--font)}
+
+#spin-screen,#galaxy-screen,#achievements-screen{background:var(--bg);z-index:1}
+.achievement-item{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.achievement-item.earned{border-color:var(--gold);background:rgba(245,197,24,.06)}
+.achievement-item.locked{opacity:.5}
+.ach-icon{font-size:28px;flex-shrink:0}
+.ach-info{flex:1}
+.ach-title{font-size:14px;font-weight:700;margin-bottom:2px}
+.ach-desc{font-size:11px;color:var(--muted)}
+.ach-reward{font-size:12px;font-weight:700;color:var(--gold);flex-shrink:0}
+.event-banner{margin:0 16px 8px;background:linear-gradient(135deg,rgba(79,142,247,.15),rgba(124,92,252,.15));border:1px solid rgba(79,142,247,.4);border-radius:12px;padding:10px 14px;display:none;position:relative;z-index:2;cursor:pointer}
+.event-banner-title{font-size:13px;font-weight:700;color:var(--accent)}
+.event-banner-desc{font-size:11px;color:var(--muted);margin-top:2px}
+
+#pvp-screen,#alliance-screen,#boss-screen,#craft-screen,#skins-screen{background:var(--bg);z-index:1}
+.pvp-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px 15px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.pvp-info{flex:1}
+.pvp-name{font-size:14px;font-weight:600}
+.pvp-stats{font-size:11px;color:var(--muted);margin-top:2px}
+.pvp-btn{padding:8px 14px;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);background:linear-gradient(135deg,var(--red),#c0392b);color:#fff;flex-shrink:0}
+.pvp-btn.shield{background:var(--bg3);color:var(--muted);cursor:default}
+.alliance-hero{background:linear-gradient(135deg,rgba(124,92,252,.15),rgba(79,142,247,.15));border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px;text-align:center}
+.alliance-name{font-size:20px;font-weight:800;color:var(--accent2);margin-bottom:4px}
+.alliance-member{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.boss-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px;text-align:center}
+.boss-emoji{font-size:64px;margin-bottom:8px}
+.boss-hp-bar{height:12px;background:var(--bg3);border-radius:6px;overflow:hidden;margin:10px 0}
+.boss-hp-fill{height:100%;background:linear-gradient(90deg,var(--red),var(--orange));border-radius:6px;transition:width .5s}
+.craft-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px}
+.craft-name{font-size:15px;font-weight:700;margin-bottom:4px}
+.craft-desc{font-size:11px;color:var(--muted);margin-bottom:10px}
+.ingredient{display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:0.5px solid var(--border)}
+.ingredient:last-child{border-bottom:none}
+.ingredient.ok{color:var(--green)}
+.ingredient.not-ok{color:var(--red)}
+.craft-btn{width:100%;padding:10px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.craft-btn:disabled{background:var(--bg3);color:var(--muted);cursor:default}
+.skin-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;transition:border-color .15s}
+.skin-card.active{border-color:var(--gold);background:rgba(245,197,24,.06)}
+.skin-preview{width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.skin-name{font-size:14px;font-weight:700;margin-bottom:2px}
+.skin-price{font-size:12px;color:var(--muted)}
+.skin-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
+.skin-badge.owned{background:rgba(46,204,113,.15);color:var(--green)}
+.skin-badge.active{background:rgba(245,197,24,.15);color:var(--gold)}
+
+#bp-screen{background:var(--bg);z-index:1}
+.bp-hero{background:linear-gradient(135deg,rgba(124,92,252,.18),rgba(79,142,247,.12));border:1px solid rgba(124,92,252,.4);border-radius:20px;padding:18px;margin-bottom:14px;text-align:center}
+.bp-xp-bar{height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;margin:8px 0 4px}
+.bp-xp-fill{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:4px;transition:width .5s}
+.bp-buy-btn{width:100%;padding:13px;background:linear-gradient(135deg,#f5c518,#f39c12);border:none;border-radius:14px;color:#1a0a00;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:10px}
+.bp-rewards-row{display:flex;gap:8px;overflow-x:auto;padding:4px 0 12px;scrollbar-width:none}
+.bp-rewards-row::-webkit-scrollbar{display:none}
+.bp-reward-cell{flex-shrink:0;width:72px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 4px;cursor:pointer;transition:border-color .15s;position:relative}
+.bp-reward-cell.available{border-color:var(--accent);background:rgba(79,142,247,.08)}
+.bp-reward-cell.claimed{border-color:var(--green);opacity:.7}
+.bp-reward-cell.locked{opacity:.4;cursor:default}
+.bp-reward-cell.premium-cell{border-color:rgba(245,197,24,.3);background:rgba(245,197,24,.05)}
+.bp-reward-cell.premium-cell.available{border-color:var(--gold)}
+.bp-level-num{font-size:9px;color:var(--muted);margin-bottom:3px}
+.bp-reward-icon{font-size:22px;margin-bottom:3px}
+.bp-reward-label{font-size:9px;color:var(--muted);line-height:1.2}
+.bp-claimed-badge{position:absolute;top:2px;right:2px;font-size:10px}
+.bp-section-title{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+
+.ob-highlight{box-shadow:0 0 0 3px rgba(79,142,247,.6),0 0 20px rgba(79,142,247,.3)!important;border-radius:12px;transition:box-shadow .3s}
+
+.activity-feed{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin:0 16px 8px;position:relative;z-index:2}
+.activity-title{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+.activity-item{font-size:11px;color:var(--text);padding:3px 0;border-bottom:0.5px solid rgba(38,48,96,.5);display:flex;align-items:center;gap:6px}
+.activity-item:last-child{border-bottom:none}
+.activity-time{font-size:10px;color:var(--muted);margin-left:auto;flex-shrink:0}
+
+.feed-item{background:rgba(255,255,255,.04);border-radius:8px;padding:5px 10px}
+.feed-text{font-size:11px;color:rgba(160,180,220,.7)}
+
+@keyframes pulse-dot{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
 </style>
 </head>
 <body>
-
-<!-- SPLASH SCREEN -->
-<div id="splash-screen" style="position:fixed;inset:0;background:#07091a;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
-  <div style="font-size:64px">🚀</div>
-  <div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:.05em">MarsX Rocket</div>
-  <div style="font-size:13px;color:#6b7db3">Покоряй галактику</div>
-  <div style="width:200px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:8px;overflow:hidden">
-    <div id="splash-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#4f8ef7,#7c5cfc);border-radius:2px;transition:width .15s linear"></div>
-  </div>
-  <div style="font-size:11px;color:rgba(107,125,179,.6);margin-top:4px">Загрузка данных...</div>
-</div>
-
 <div id="stars-bg"></div>
 <div class="toast" id="toast"></div>
 
 <!-- ONBOARDING -->
 <div id="onboarding-modal">
   <div class="ob-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-size:11px;color:var(--muted)" id="ob-step">1 / 5</span>
+      <button id="ob-skip" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:var(--font);padding:4px 8px">Пропустить</button>
+    </div>
+    <div style="font-size:48px;text-align:center;margin-bottom:10px" id="ob-emoji">🚀</div>
     <div class="ob-title" id="ob-title">Добро пожаловать!</div>
     <div class="ob-body" id="ob-body"></div>
     <div class="ob-dots" id="ob-dots"></div>
@@ -232,7 +302,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 <!-- DAILY BONUS MODAL -->
 <div class="modal-overlay center" id="daily-modal">
   <div class="modal-box">
-    <div class="modal-title">?? Ежедневный бонус</div>
+    <div class="modal-title">🎁 Ежедневный бонус</div>
     <div style="font-size:15px;font-weight:700;text-align:center;color:var(--accent);margin-bottom:12px" id="daily-streak">День 1</div>
     <div class="daily-big">
       <div class="daily-reward-box"><div class="daily-val" id="daily-gc">+50 GC</div><div class="daily-lbl">Капитал</div></div>
@@ -254,9 +324,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     </div>
     <div class="top-right">
       <div class="icon-btn" onclick="showDailyBonus()" style="font-size:18px">
-        ??<span id="daily-indicator" style="display:none;position:absolute;top:2px;right:2px;width:8px;height:8px;border-radius:50%;background:var(--red);border:1.5px solid var(--bg)"></span>
+        🎁<span id="daily-indicator" style="display:none;position:absolute;top:2px;right:2px;width:8px;height:8px;border-radius:50%;background:var(--red);border:1.5px solid var(--bg)"></span>
       </div>
-      <div class="icon-btn" onclick="showScreen('shop-screen');setShopTab('boosters')">??</div>
+      <div class="icon-btn" onclick="showSpin()">🎰</div>
+      <div class="icon-btn" onclick="showScreen('shop-screen');setShopTab('boosters')">🛒</div>
     </div>
   </div>
   <div class="stats-row">
@@ -264,13 +335,29 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     <div class="stat-card"><div class="stat-label">Капитал</div><div class="stat-val" id="stat-gc">0 <span>GC</span></div></div>
     <div class="stat-card"><div class="stat-label">Рейтинг</div><div class="stat-val" id="stat-ci">0 <span>CI</span></div></div>
   </div>
-  <div class="tap-area">
-    <div id="tap-area-wrap" style="position:relative;width:260px;height:260px">
-      <canvas id="tap-canvas" width="260" height="260"></canvas>
-      <div class="combo-wrap"><div class="combo-display" id="combo-display"></div></div>
-    </div>
+  <div class="activity-feed" id="activity-feed" style="display:none">
+    <div class="activity-title">🌍 Активность</div>
+    <div id="activity-items"></div>
   </div>
-  <div class="tap-hint">Тапай планету — добывай топливо</div>
+
+<!-- SOCIAL PRESSURE BANNER -->
+<div id="social-pressure-banner" style="display:none;margin:0 16px 6px;background:linear-gradient(135deg,rgba(231,76,60,.15),rgba(192,57,43,.1));border:1px solid rgba(231,76,60,.3);border-radius:10px;padding:8px 12px;position:relative;z-index:2;cursor:pointer" onclick="showScreen('league-screen');renderLeague()">
+  <div class="sp-text" style="font-size:12px;font-weight:600;color:#e74c3c"></div>
+</div>
+
+<!-- ACTIVITY FEED -->
+<div style="margin:0 16px 6px;position:relative;z-index:2" id="activity-feed-wrap">
+  <div id="activity-feed" style="display:flex;flex-direction:column;gap:3px"></div>
+</div>
+  <div class="event-banner" id="event-banner" onclick="showMain()">
+    <div class="event-banner-title" id="event-banner-title">🌍 Событие активно!</div>
+    <div class="event-banner-desc" id="event-banner-desc"></div>
+  </div>
+  <div class="tap-area" id="tap-area-wrap">
+    <canvas id="tap-canvas" style="display:block;width:100%;height:100%"></canvas>
+    <div class="combo-wrap" style="position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:10"><div class="combo-display" id="combo-display"></div></div>
+  </div>
+  <!-- tap-hint убран — подсказка внутри canvas -->
   <div class="fuel-bar-wrap">
     <div class="fuel-label"><span>Топливо</span><span id="fuel-pct">0%</span></div>
     <div class="fuel-bar"><div class="fuel-fill" id="fuel-fill" style="width:0%"></div></div>
@@ -278,11 +365,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
   <div class="launch-wrap">
     <button class="launch-btn" onclick="showScreen('planet-screen');renderPlanets()">🚀 Запустить экспедицию</button>
   </div>
+  <div id="reset-flight-btn" style="display:none;padding:0 16px 8px;position:relative;z-index:2">
+    <button onclick="resetFlight()" style="width:100%;padding:11px;background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.4);border-radius:12px;color:#e74c3c;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)">
+      ⚠️ Корабль застрял — сбросить полёт
+    </button>
+  </div>
   <div class="bottom-nav">
     <div class="nav-btn active" onclick="showMain()"><div class="nav-icon">⚡</div><div class="nav-label">База</div></div>
     <div class="nav-btn" onclick="showScreen('planet-screen');renderPlanets()"><div class="nav-icon">🪐</div><div class="nav-label">Полёты</div></div>
     <div class="nav-btn" onclick="showMiners()"><div class="nav-icon">⛏</div><div class="nav-label">Майнеры</div></div>
     <div class="nav-btn" onclick="showQuests()"><div class="nav-icon">🎯</div><div class="nav-label">Квесты</div></div>
+    <div class="nav-btn" onclick="showAchievements()"><div class="nav-icon">🏅</div><div class="nav-label">Ачивки</div></div>
     <div class="nav-btn" onclick="showLeague()"><div class="nav-icon">🏆</div><div class="nav-label">Лига</div></div>
     <div class="nav-btn" onclick="showGalaxy()"><div class="nav-icon">🗺</div><div class="nav-label">Карта</div></div>
     <div class="nav-btn" onclick="showMoreMenu()"><div class="nav-icon">☰</div><div class="nav-label">Ещё</div></div>
@@ -308,7 +401,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 <!-- ARRIVAL -->
 <div id="arrival-screen" class="screen">
   <div class="arrival-content">
-    <div class="arrival-planet" id="arrival-emoji">??</div>
+    <div class="arrival-planet" id="arrival-emoji">🔴</div>
     <div class="arrival-title" id="arrival-title">Прибытие!</div>
     <div class="arrival-subtitle" id="arrival-subtitle">Экспедиция завершена</div>
     <div class="rewards-box" id="rewards-box"></div>
@@ -324,7 +417,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     <div class="shop-tab active" onclick="setShopTab('boosters')">Бустеры</div>
     <div class="shop-tab" onclick="setShopTab('parts')">Запчасти</div>
     <div class="shop-tab" onclick="setShopTab('weapons')">Оружие</div>
-    <div class="shop-tab" onclick="setShopTab('autopilot')">?? Автопилот</div>
+    <div class="shop-tab" onclick="setShopTab('autopilot')">🛸 Автопилот</div>
   </div>
   <div class="scroll-content" id="shop-items"></div>
 </div>
@@ -358,10 +451,260 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
       <div style="font-size:11px;color:var(--muted)" id="crew-bonus-label">+0% к добыче топлива</div>
     </div>
     <div class="ref-link-box"><div class="ref-link-text" id="ref-link-text">Загрузка...</div><button class="copy-btn" onclick="copyRef()">Копировать</button></div>
-    <button class="share-btn" onclick="shareRef()">?? Пригласить в экипаж</button>
+    <button class="share-btn" onclick="shareRef()">👥 Пригласить в экипаж</button>
   </div>
 </div>
 
+
+<!-- SPIN SCREEN -->
+<div id="spin-screen" class="screen">
+  <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Колесо фортуны</div></div>
+  <div class="scroll-content" style="display:flex;flex-direction:column;align-items:center;padding:16px">
+    <div id="spin-next-time" style="font-size:12px;color:var(--muted);margin-bottom:12px;text-align:center"></div>
+    <div style="position:relative;width:280px;height:280px;margin-bottom:20px">
+      <canvas id="spin-canvas" width="280" height="280" style="border-radius:50%"></canvas>
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:3px solid #fff;z-index:2;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px" id="spin-center-btn" onclick="doSpin()">🎰</div>
+      <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:24px;z-index:3">▼</div>
+    </div>
+    <div id="spin-result" style="font-size:18px;font-weight:800;text-align:center;min-height:28px;color:var(--gold)"></div>
+    <button id="spin-btn" onclick="doSpin()" style="width:100%;padding:14px;background:linear-gradient(135deg,var(--gold),var(--orange));border:none;border-radius:14px;color:#1a0a00;font-size:16px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:16px">
+      🎰 Крутить!
+    </button>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center">Бесплатно раз в 24 часа</div>
+  </div>
+</div>
+
+<!-- GALAXY MAP SCREEN -->
+<div id="galaxy-screen" class="screen">
+  <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Карта галактики</div></div>
+  <div style="flex:1;position:relative;overflow:hidden;z-index:2">
+    <canvas id="galaxy-canvas" style="width:100%;height:100%;display:block"></canvas>
+    <div id="galaxy-tooltip" style="position:absolute;display:none;background:rgba(10,18,40,.95);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--text);pointer-events:none;z-index:5"></div>
+  </div>
+</div>
+
+<!-- ACHIEVEMENTS SCREEN -->
+<div id="achievements-screen" class="screen">
+  <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Достижения</div></div>
+  <div class="scroll-content" id="achievements-list"></div>
+</div>
+
+<!-- PvP SCREEN -->
+<div id="pvp-screen" class="screen">
+  <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Ограбление базы</div></div>
+  <div style="padding:0 16px 8px;font-size:12px;color:var(--muted);position:relative;z-index:2">Атакуй соседей по рейтингу. Кулдаун: 6 часов.</div>
+  <div class="scroll-content" id="pvp-targets-list"></div>
+</div>
+
+<!-- ALLIANCE SCREEN -->
+<div id="alliance-screen" class="screen">
+  <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Альянс</div></div>
+  <div class="scroll-content" id="alliance-content"></div>
+</div>
+
+<!-- BOSS SCREEN -->
+<div id="boss-screen" class="screen">
+  <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Еженедельный босс</div></div>
+  <div class="scroll-content" id="boss-content"></div>
+</div>
+
+<!-- CRAFT SCREEN -->
+<div id="craft-screen" class="screen">
+  <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Лаборатория крафта</div></div>
+  <div class="scroll-content" id="craft-content"></div>
+</div>
+
+<!-- SKINS SCREEN -->
+<div id="skins-screen" class="screen">
+  <div class="screen-header"><div class="back-btn" onclick="showMain()">←</div><div class="screen-title">Скины ракеты</div></div>
+  <div class="scroll-content" id="skins-list"></div>
+</div>
+
+<!-- MORE MENU -->
+<div id="more-menu" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;align-items:flex-end" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--bg2);border-radius:20px 20px 0 0;padding:16px;width:100%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+    <div onclick="showPvP()" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">⚔️</div><div style="font-size:11px;color:var(--muted)">PvP</div>
+    </div>
+    <div onclick="showAlliance()" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">🤝</div><div style="font-size:11px;color:var(--muted)">Альянс</div>
+    </div>
+    <div onclick="showBoss()" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">👾</div><div style="font-size:11px;color:var(--muted)">Босс</div>
+    </div>
+    <div onclick="showCraft()" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">🧪</div><div style="font-size:11px;color:var(--muted)">Крафт</div>
+    </div>
+    <div onclick="showSkins()" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">🎨</div><div style="font-size:11px;color:var(--muted)">Скины</div>
+    </div>
+    <div onclick="showAchievements()" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">🏅</div><div style="font-size:11px;color:var(--muted)">Ачивки</div>
+    </div>
+    <div onclick="showToken()" style="background:linear-gradient(135deg,rgba(124,92,252,.15),rgba(245,197,24,.1));border:1px solid rgba(124,92,252,.4);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">🪙</div><div style="font-size:11px;color:var(--accent2)">MXT Token</div>
+    </div>
+    <div onclick="showBP()" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer">
+      <div style="font-size:24px;margin-bottom:4px">🎖</div><div style="font-size:11px;color:var(--muted)">Battle Pass</div>
+    </div>
+  </div>
+</div>
+
+<!-- BATTLE PASS SCREEN -->
+<div id="bp-screen" class="screen">
+  <div class="screen-header">
+    <div class="back-btn" onclick="showMain()">←</div>
+    <div class="screen-title">Battle Pass</div>
+    <div id="bp-timer" style="margin-left:auto;font-size:11px;color:var(--muted)"></div>
+  </div>
+  <div class="scroll-content" id="bp-content"></div>
+</div>
+
+
+<style>
+
+
+.activity-feed{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin:0 16px 8px;position:relative;z-index:2}
+.activity-title{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+.activity-item{font-size:11px;color:var(--text);padding:3px 0;border-bottom:0.5px solid rgba(38,48,96,.5);display:flex;align-items:center;gap:6px}
+.activity-item:last-child{border-bottom:none}
+.activity-time{font-size:10px;color:var(--muted);margin-left:auto;flex-shrink:0}
+
+.feed-item{background:rgba(255,255,255,.04);border-radius:8px;padding:5px 10px}
+.feed-text{font-size:11px;color:rgba(160,180,220,.7)}
+
+@keyframes pulse-dot{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+</style>
+
+<!-- SPLASH SCREEN -->
+<div id="splash-screen" style="position:fixed;inset:0;background:#07091a;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px">
+  <div style="font-size:64px">🚀</div>
+  <div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:.05em">MarsX Rocket</div>
+  <div style="font-size:13px;color:#6b7db3">Покоряй галактику</div>
+  <div style="width:200px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;margin-top:8px">
+    <div id="splash-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#4f8ef7,#7c5cfc);border-radius:2px;transition:width .1s"></div>
+  </div>
+</div>
+
+<!-- STARTER PACK -->
+<div id="starter-pack-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:40;align-items:flex-end;justify-content:center">
+  <div style="background:var(--bg2);border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:440px">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:40px;margin-bottom:8px">📦</div>
+      <div style="font-size:18px;font-weight:800;color:var(--text)">Пак первопроходца</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">Специальное предложение для новых игроков</div>
+    </div>
+    <div style="background:var(--bg3);border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:0.5px solid var(--border)"><span>💰 GC</span><span style="font-weight:700;color:var(--gold)">+1000 GC</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:0.5px solid var(--border)"><span>🛡 Щиты</span><span style="font-weight:700;color:var(--green)">×3 щита</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:0.5px solid var(--border)"><span>⛽ Буст топлива</span><span style="font-weight:700;color:var(--accent)">×2 буста</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0"><span>🚀 Разблокировка Марса</span><span style="font-weight:700;color:var(--accent2)">сразу</span></div>
+    </div>
+    <button onclick="buyStarterPack()" style="width:100%;padding:14px;background:linear-gradient(135deg,#f5c518,#f39c12);border:none;border-radius:14px;color:#1a0a00;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:8px;font-family:var(--font)">
+      ⭐ 99 Stars — Купить
+    </button>
+    <button onclick="closeStarterPack()" style="width:100%;padding:10px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:var(--font)">
+      Нет, спасибо
+    </button>
+  </div>
+</div>
+
+<!-- TOKEN SCREEN -->
+<div id="token-screen" class="screen">
+  <div class="screen-header">
+    <div class="back-btn" onclick="showMain()">←</div>
+    <div class="screen-title">MarsX Token</div>
+  </div>
+  <div class="scroll-content" style="padding:0 16px 24px">
+
+    <!-- Hero -->
+    <div style="background:linear-gradient(135deg,rgba(124,92,252,.2),rgba(79,142,247,.15));border:1px solid rgba(124,92,252,.4);border-radius:20px;padding:20px;margin-bottom:16px;text-align:center">
+      <div style="font-size:48px;margin-bottom:8px">🪙</div>
+      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px">MarsX Token (MXT)</div>
+      <div style="font-size:13px;color:var(--muted)">Твои GC станут реальными токенами</div>
+    </div>
+
+    <!-- Твой баланс -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Твои накопленные GC</div>
+      <div style="font-size:32px;font-weight:900;color:var(--gold)" id="token-gc-balance">0</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">= потенциальные MXT токены при TGE</div>
+      <div style="height:1px;background:var(--border);margin:12px 0"></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Как увеличить количество MXT:</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="font-size:16px">🚀</span><span>Летать на дальние планеты — больше CI = больше токенов</span></div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="font-size:16px">👥</span><span>Приглашать друзей — реферальный бонус считается</span></div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="font-size:16px">📅</span><span>Заходить каждый день — стрик умножает итоговый дроп</span></div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="font-size:16px">🏆</span><span>Топ в лиге — ×2 к распределению токенов</span></div>
+      </div>
+    </div>
+
+    <!-- Статус ICO -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="width:8px;height:8px;border-radius:50%;background:#f39c12;animation:pulse-dot 1.5s infinite"></div>
+        <div style="font-size:14px;font-weight:700">Статус: Подготовка к TGE</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:0.5px solid var(--border)">
+          <span style="color:var(--muted)">Фаза</span>
+          <span style="font-weight:600;color:#f39c12">Farming Phase</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:0.5px solid var(--border)">
+          <span style="color:var(--muted)">Сеть</span>
+          <span style="font-weight:600">Ethereum / BNB Chain</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:0.5px solid var(--border)">
+          <span style="color:var(--muted)">Тикер</span>
+          <span style="font-weight:600">MXT</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0">
+          <span style="color:var(--muted)">TGE</span>
+          <span style="font-weight:600;color:var(--accent2)">TBA (объявим в канале)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Как будет работать -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px">Как будет работать обмен</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="width:24px;height:24px;border-radius:50%;background:rgba(79,142,247,.2);border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0">1</div>
+          <div><div style="font-size:12px;font-weight:600">Farming Phase (сейчас)</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Играй и накапливай GC. Чем больше — тем больше токенов при TGE.</div></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="width:24px;height:24px;border-radius:50%;background:rgba(124,92,252,.2);border:1px solid var(--accent2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent2);flex-shrink:0">2</div>
+          <div><div style="font-size:12px;font-weight:600">Snapshot</div><div style="font-size:11px;color:var(--muted);margin-top:2px">В объявленную дату делается снимок всех балансов. Важен CI, стрик и активность.</div></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="width:24px;height:24px;border-radius:50%;background:rgba(245,197,24,.15);border:1px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--gold);flex-shrink:0">3</div>
+          <div><div style="font-size:12px;font-weight:600">TGE — Token Generation Event</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Токены MXT создаются в EVM совместимой сети и распределяются между игроками пропорционально накопленным GC.</div></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="width:24px;height:24px;border-radius:50%;background:rgba(46,204,113,.15);border:1px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--green);flex-shrink:0">4</div>
+          <div><div style="font-size:12px;font-weight:600">Листинг</div><div style="font-size:11px;color:var(--muted);margin-top:2px">MXT токены торгуются на DEX (Uniswap, PancakeSwap) в EVM экосистеме. Можно продать или держать.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Дисклеймер -->
+    <div style="background:rgba(231,76,60,.06);border:1px solid rgba(231,76,60,.2);border-radius:12px;padding:12px;margin-bottom:16px">
+      <div style="font-size:11px;color:rgba(231,76,60,.8);line-height:1.6">
+        ⚠️ <strong>Важно:</strong> MarsX Token — утилитарный токен внутри экосистемы. Конкретные условия TGE, объём эмиссии и дата будут объявлены официально. Это не является финансовым советом или гарантией дохода. Участие добровольное.
+      </div>
+    </div>
+
+    <!-- Подписаться на анонсы -->
+    <button onclick="openTelegramChannel()" style="width:100%;padding:14px;background:linear-gradient(135deg,#4f8ef7,#7c5cfc);border:none;border-radius:14px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px;font-family:var(--font)">
+      📣 Подписаться на анонсы TGE
+    </button>
+    <button onclick="shareReferral()" style="width:100%;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)">
+      👥 Пригласить друзей — увеличить дроп
+    </button>
+
+  </div>
+</div>
 <script src="script.js"></script>
 </body>
 </html>
