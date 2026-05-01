@@ -168,13 +168,23 @@ function initTelegram(){
   }
   const tg=window.Telegram.WebApp;
   tg.expand();
-  tg.setHeaderColor('#07091a');
-  tg.setBackgroundColor('#07091a');
+  try{ tg.setHeaderColor('#07091a'); } catch(e){}
+  try{ tg.setBackgroundColor('#07091a'); } catch(e){}
   G.tgUser  = tg.initDataUnsafe?.user || {first_name:'Командор',id:0};
-  G.tgId    = G.tgUser.id;
+  G.tgId    = G.tgUser.id || null;
   G.initData = tg.initData || '';
-  applyUserUI();
-  loadUserData();
+  // Если user не пришёл сразу — ждём чуть-чуть и пробуем снова
+  if(!G.tgId){
+    setTimeout(()=>{
+      G.tgUser = tg.initDataUnsafe?.user || {first_name:'Командор',id:12345};
+      G.tgId   = G.tgUser.id || 12345;
+      applyUserUI();
+      loadUserData();
+    }, 300);
+  } else {
+    applyUserUI();
+    loadUserData();
+  }
 }
 
 function applyUserUI(){
@@ -209,9 +219,20 @@ async function apiGet(path){
 
 async function loadUserData(){
   if(!G.tgId){
-    console.warn('[loadUserData] tgId not ready, retry in 500ms');
-    setTimeout(loadUserData, 500);
-    return;
+    // Если нет tgId — ждём максимум 3 сек потом показываем игру с тест ID
+    if(!loadUserData._retries) loadUserData._retries = 0;
+    loadUserData._retries++;
+    if(loadUserData._retries > 6){
+      // 3 секунды прошло — открываем в браузере с тест данными
+      console.warn('[loadUserData] tgId так и не появился — используем тест режим');
+      G.tgId = 12345;
+      G.tgUser = {first_name: 'Тест', id: 12345};
+      loadUserData._retries = 0;
+    } else {
+      console.warn('[loadUserData] tgId not ready, retry in 500ms');
+      setTimeout(loadUserData, 500);
+      return;
+    }
   }
   console.log('[loadUserData] запрос для', G.tgId);
   const res=await apiGet('/user_data');
