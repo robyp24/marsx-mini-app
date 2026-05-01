@@ -6,7 +6,17 @@
 <title>MarsX</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-:root{--bg:#07091a;--bg2:#0d1228;--bg3:#131a36;--card:#18203d;--border:#263060;--accent:#4f8ef7;--accent2:#7c5cfc;--gold:#f5c518;--green:#2ecc71;--red:#e74c3c;--orange:#f39c12;--text:#e8eaf6;--muted:#6b7db3;--font:'SF Pro Display',-apple-system,sans-serif}
+:root{
+  --bg:#07091a;--bg2:#0c1020;--bg3:#111830;--card:#141c35;
+  --border:rgba(79,142,247,0.18);--border2:rgba(124,92,252,0.15);
+  --accent:#4f8ef7;--accent2:#7c5cfc;--gold:#f5c518;--green:#2ecc71;
+  --red:#e74c3c;--orange:#f39c12;--text:#e8eaf6;--muted:#6b7db3;
+  --font:'SF Pro Display',-apple-system,BlinkMacSystemFont,sans-serif;
+  --glow-blue:0 0 20px rgba(79,142,247,0.4);
+  --glow-purple:0 0 20px rgba(124,92,252,0.4);
+  --glow-gold:0 0 20px rgba(245,197,24,0.4);
+  --radius:16px;--radius-sm:10px;--radius-lg:20px;
+}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font)}
 .screen{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden}
@@ -16,44 +26,52 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 @keyframes twinkle{0%{opacity:.1}100%{opacity:.6}}
 
 /* TOP BAR */
-.top-bar{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 8px;position:relative;z-index:2}
-.player-info{display:flex;align-items:center;gap:8px}
-.avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;border:2px solid rgba(79,142,247,.4)}
-.player-name{font-size:14px;font-weight:600}
-.rank-badge{font-size:10px;color:var(--muted)}
+.top-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 6px;position:relative;z-index:2;background:linear-gradient(180deg,rgba(7,9,26,0.95) 0%,transparent 100%)}
+.player-info{display:flex;align-items:center;gap:10px}
+.avatar{width:40px;height:40px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;border:2px solid rgba(79,142,247,.5);box-shadow:var(--glow-blue)}
+.player-name{font-size:14px;font-weight:700;letter-spacing:0.02em}
+.rank-badge{font-size:10px;color:var(--accent);font-weight:600;letter-spacing:0.05em;text-transform:uppercase}
 .top-right{display:flex;gap:8px;align-items:center}
-.icon-btn{width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;position:relative}
-.notif-dot{position:absolute;top:2px;right:2px;width:8px;height:8px;border-radius:50%;background:var(--red);border:1.5px solid var(--bg)}
+.icon-btn{width:38px;height:38px;border-radius:12px;background:rgba(20,28,53,0.8);border:1px solid var(--border);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;position:relative;transition:border-color .2s,box-shadow .2s}
+.icon-btn:active{box-shadow:var(--glow-blue);border-color:var(--accent)}
+.notif-dot{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--red);border:1.5px solid var(--bg);animation:pulse-dot 1.5s infinite}
 
 /* STATS */
-.stats-row{display:flex;gap:6px;padding:0 16px 10px;position:relative;z-index:2}
-.stat-card{flex:1;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 10px}
-.stat-label{font-size:9px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:.04em}
-.stat-val{font-size:15px;font-weight:700}
-.stat-val span{font-size:9px;color:var(--muted);font-weight:400}
+.stats-row{display:flex;gap:6px;padding:0 12px 8px;position:relative;z-index:2}
+.stat-card{flex:1;background:rgba(20,28,53,0.7);border:1px solid var(--border);border-radius:12px;padding:8px 10px;backdrop-filter:blur(10px);transition:border-color .2s}
+.stat-card:first-child{border-color:rgba(79,142,247,0.3)}
+.stat-card:nth-child(2){border-color:rgba(245,197,24,0.3)}
+.stat-card:last-child{border-color:rgba(46,204,113,0.3)}
+.stat-label{font-size:8px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.stat-val{font-size:16px;font-weight:800;background:linear-gradient(135deg,#fff,rgba(232,234,246,0.8));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-val span{font-size:8px;color:var(--muted);font-weight:500;-webkit-text-fill-color:var(--muted)}
 
 /* TAP AREA */
-.tap-area{flex:1;display:flex;align-items:stretch;position:relative;z-index:2;overflow:hidden}
-.combo-wrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:10}
-.combo-display{font-size:30px;font-weight:900;color:var(--gold);text-shadow:0 0 24px rgba(245,197,24,.7);opacity:0;transition:opacity .25s;white-space:nowrap}
+.tap-area{flex:1;display:flex;align-items:stretch;position:relative;z-index:2;overflow:hidden;min-height:0}
+.combo-wrap{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:10}
+.combo-display{font-size:36px;font-weight:900;color:var(--gold);text-shadow:0 0 30px rgba(245,197,24,.8),0 0 60px rgba(245,197,24,.4);opacity:0;transition:opacity .2s;white-space:nowrap;letter-spacing:-0.02em}
 .combo-display.show{opacity:1}
-.tap-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:4px;position:relative;z-index:2}
 
 /* FUEL + LAUNCH */
-.fuel-bar-wrap{padding:0 16px 8px;position:relative;z-index:2}
-.fuel-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px}
-.fuel-bar{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden}
-.fuel-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width .3s}
-.launch-wrap{padding:0 16px 8px;position:relative;z-index:2}
-.launch-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;font-family:var(--font);transition:transform .1s}
-.launch-btn:active{transform:scale(.97)}
+.fuel-bar-wrap{padding:0 14px 6px;position:relative;z-index:2}
+.fuel-label{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:5px;font-weight:600;letter-spacing:0.04em}
+.fuel-bar{height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;position:relative}
+.fuel-bar::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent);animation:shimmer 2s infinite}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.fuel-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2),#a78bfa);border-radius:2px;transition:width .4s cubic-bezier(0.4,0,0.2,1);box-shadow:0 0 8px rgba(79,142,247,0.6)}
+.launch-wrap{padding:0 14px 8px;position:relative;z-index:2}
+.launch-btn{width:100%;padding:15px;background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 50%,#a78bfa 100%);border:none;border-radius:var(--radius);color:#fff;font-size:16px;font-weight:800;cursor:pointer;font-family:var(--font);transition:transform .1s,box-shadow .2s;box-shadow:0 4px 24px rgba(79,142,247,0.4),0 0 0 1px rgba(255,255,255,0.1) inset;letter-spacing:0.02em;text-shadow:0 1px 3px rgba(0,0,0,0.3)}
+.launch-btn:active{transform:scale(.97);box-shadow:0 2px 12px rgba(79,142,247,0.3)}
 
 /* BOTTOM NAV */
-.bottom-nav{display:flex;background:var(--bg2);border-top:1px solid var(--border);padding:8px 0 max(8px,env(safe-area-inset-bottom));position:relative;z-index:2}
-.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px 0;opacity:.45;transition:opacity .15s}
+.bottom-nav{display:flex;background:rgba(12,16,32,0.95);border-top:1px solid var(--border);padding:6px 0 max(6px,env(safe-area-inset-bottom));position:relative;z-index:2;backdrop-filter:blur(20px)}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0;opacity:.4;transition:all .2s}
 .nav-btn.active{opacity:1}
-.nav-icon{font-size:20px}
-.nav-label{font-size:9px;color:var(--muted)}
+.nav-icon{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;transition:background .2s,box-shadow .2s}
+.nav-btn.active .nav-icon{background:rgba(79,142,247,0.15);box-shadow:0 0 12px rgba(79,142,247,0.3)}
+.nav-icon svg{width:16px;height:16px;fill:currentColor;color:var(--muted)}
+.nav-btn.active .nav-icon svg{color:var(--accent)}
+.nav-label{font-size:8px;color:var(--muted);font-weight:600;letter-spacing:0.04em}
 .nav-btn.active .nav-label{color:var(--accent)}
 
 /* FLOAT NUMS */
@@ -278,6 +296,73 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .feed-text{font-size:11px;color:rgba(160,180,220,.7)}
 
 @keyframes pulse-dot{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+
+/* GLOW RING вокруг ракеты */
+.tap-area::before{
+  content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+  width:60%;height:40px;
+  background:radial-gradient(ellipse,rgba(79,142,247,0.25) 0%,transparent 70%);
+  pointer-events:none;z-index:1;
+}
+.tap-area::after{
+  content:'';position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+  width:40%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(79,142,247,0.5),transparent);
+  pointer-events:none;z-index:1;
+}
+
+/* STAT CARDS улучшенные */
+.stat-card:first-child .stat-val{background:linear-gradient(135deg,#60a5fa,#93c5fd);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-card:nth-child(2) .stat-val{background:linear-gradient(135deg,#fbbf24,#fde68a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-card:last-child .stat-val{background:linear-gradient(135deg,#34d399,#6ee7b7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* FUEL BAR улучшенный */
+.fuel-bar{height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;position:relative;border:1px solid rgba(255,255,255,0.04)}
+
+/* PLANET ITEMS */
+.planet-item{background:rgba(20,28,53,0.7);border:1px solid var(--border);border-radius:var(--radius);backdrop-filter:blur(10px);transition:all .2s}
+.planet-item:not(.locked):hover{border-color:var(--accent);box-shadow:var(--glow-blue);transform:translateY(-1px)}
+.risk-low{background:rgba(46,204,113,0.12);color:#4ade80;border:1px solid rgba(46,204,113,0.2)}
+.risk-med{background:rgba(245,197,24,0.12);color:#fbbf24;border:1px solid rgba(245,197,24,0.2)}
+.risk-high{background:rgba(231,76,60,0.12);color:#f87171;border:1px solid rgba(231,76,60,0.2)}
+.risk-legend{background:rgba(124,92,252,0.15);color:#c4b5fd;border:1px solid rgba(124,92,252,0.3)}
+
+/* SHOP улучшенный */
+.shop-item{background:rgba(20,28,53,0.7);border:1px solid var(--border);border-radius:var(--radius);backdrop-filter:blur(10px);transition:border-color .2s}
+.shop-item.owned{border-color:rgba(46,204,113,0.4);background:rgba(46,204,113,0.05)}
+.shop-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;box-shadow:0 2px 12px rgba(79,142,247,0.3)}
+.shop-btn:active{transform:scale(.95)}
+
+/* MINER CARDS */
+.miner-card{background:rgba(20,28,53,0.7);border:1px solid var(--border);border-radius:var(--radius);backdrop-filter:blur(10px)}
+
+/* MODAL улучшенный */
+.modal-box{background:rgba(13,18,40,0.98);border:1px solid var(--border);backdrop-filter:blur(20px)}
+.modal-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 4px 20px rgba(79,142,247,0.4)}
+
+/* LAUNCH BTN пульсация */
+@keyframes launch-pulse{0%,100%{box-shadow:0 4px 24px rgba(79,142,247,0.4),0 0 0 0 rgba(79,142,247,0)}50%{box-shadow:0 4px 24px rgba(79,142,247,0.6),0 0 0 8px rgba(79,142,247,0)}}
+.launch-btn{animation:launch-pulse 2s infinite}
+.launch-btn:active{animation:none}
+
+/* SCREEN HEADER */
+.screen-header{background:linear-gradient(180deg,rgba(7,9,26,0.95) 0%,transparent 100%);backdrop-filter:blur(10px)}
+.back-btn{background:rgba(20,28,53,0.8);border:1px solid var(--border);backdrop-filter:blur(10px);font-size:16px;transition:all .2s}
+.back-btn:active{border-color:var(--accent);box-shadow:var(--glow-blue)}
+
+/* LEAGUE */
+.lb-item{background:rgba(20,28,53,0.7);border:1px solid var(--border);border-radius:var(--radius-sm);backdrop-filter:blur(10px);transition:all .2s}
+.lb-item.me{border-color:var(--accent);background:rgba(79,142,247,0.08);box-shadow:var(--glow-blue)}
+
+/* TOAST */
+.toast{background:rgba(13,18,40,0.95);border:1px solid var(--border);backdrop-filter:blur(20px);box-shadow:0 8px 32px rgba(0,0,0,0.4)}
+
+/* СКИНЫ */
+.skin-card{background:rgba(20,28,53,0.7);border:1px solid var(--border);border-radius:var(--radius);backdrop-filter:blur(10px);transition:all .2s}
+.skin-card.active{border-color:var(--gold);background:rgba(245,197,24,0.08);box-shadow:var(--glow-gold)}
+
+/* SPIN WHEEL */
+#spin-canvas{border-radius:50%;box-shadow:0 0 40px rgba(79,142,247,0.3),0 0 0 2px rgba(79,142,247,0.2)}
 </style>
 </head>
 <body>
@@ -331,9 +416,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     </div>
   </div>
   <div class="stats-row">
-    <div class="stat-card"><div class="stat-label">Топливо</div><div class="stat-val" id="stat-fuel">0 <span>F</span></div></div>
-    <div class="stat-card"><div class="stat-label">Капитал</div><div class="stat-val" id="stat-gc">0 <span>GC</span></div></div>
-    <div class="stat-card"><div class="stat-label">Рейтинг</div><div class="stat-val" id="stat-ci">0 <span>CI</span></div></div>
+    <div class="stat-card"><div class="stat-label">⛽ Топливо</div><div class="stat-val" id="stat-fuel">0 <span>F</span></div></div>
+    <div class="stat-card"><div class="stat-label">💰 Капитал</div><div class="stat-val" id="stat-gc">0 <span>GC</span></div></div>
+    <div class="stat-card"><div class="stat-label">⬆️ Рейтинг</div><div class="stat-val" id="stat-ci">0 <span>CI</span></div></div>
   </div>
   <div class="activity-feed" id="activity-feed" style="display:none">
     <div class="activity-title">🌍 Активность</div>
@@ -353,8 +438,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
     <div class="event-banner-title" id="event-banner-title">🌍 Событие активно!</div>
     <div class="event-banner-desc" id="event-banner-desc"></div>
   </div>
-  <div class="tap-area" id="tap-area-wrap">
+  <div class="tap-area" id="tap-area-wrap" style="position:relative">
     <canvas id="tap-canvas" style="display:block;width:100%;height:100%"></canvas>
+    <!-- Градиент снизу для плавного перехода -->
+    <div style="position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(transparent,var(--bg));pointer-events:none;z-index:3"></div>
     <div class="combo-wrap" style="position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:10"><div class="combo-display" id="combo-display"></div></div>
   </div>
   <!-- tap-hint убран — подсказка внутри canvas -->
