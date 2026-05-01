@@ -857,18 +857,22 @@ function initThreeScene() {
   tapRenderer.shadowMap.enabled = true;
   tapRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
   tapRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-  tapRenderer.toneMappingExposure = 1.3;
+  tapRenderer.toneMappingExposure = 1.5;
 
   // Scene
   tapScene = new THREE.Scene();
   const env = PLANET_ENV_COLORS[tapCurrentPlanet] || PLANET_ENV_COLORS.earth;
   tapScene.background = new THREE.Color(env.bg);
-  tapScene.fog = new THREE.FogExp2(env.fog, 0.04);
+  tapScene.fog = new THREE.FogExp2(env.fog, 0.025); // менее плотный туман
 
   // Camera
-  tapCamera = new THREE.PerspectiveCamera(42, W / H, 0.1, 100);
-  tapCamera.position.set(0, 0.5, 7.5);
-  tapCamera.lookAt(0, 0.5, 0);
+  // FOV адаптируется под высоту — на маленьких экранах ракета меньше
+  const fov = Math.max(55, Math.min(75, 55 + (1 - H/window.innerHeight)*20));
+  tapCamera = new THREE.PerspectiveCamera(fov, W / H, 0.1, 100);
+  // Расстояние от ракеты — зависит от размера экрана
+  const camDist = Math.max(8.5, 7 + (400/Math.max(H,200)));
+  tapCamera.position.set(0, 0.2, camDist);
+  tapCamera.lookAt(0, 0.2, 0);
 
   // Lights
   const ambient = new THREE.AmbientLight(0x334466, 0.9); tapScene.add(ambient);
@@ -891,28 +895,57 @@ function initThreeScene() {
   tapScene.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 0.04, sizeAttenuation: true })));
 
   // Platform
-  const platGeo = new THREE.CylinderGeometry(1.4, 1.7, 0.12, 32);
-  const platMat = new THREE.MeshStandardMaterial({ color: 0x1a2540, metalness: 0.7, roughness: 0.35 });
+  // Платформа — многоуровневая с неоном
+  const platGeo = new THREE.CylinderGeometry(1.6, 1.9, 0.08, 48);
+  const platMat = new THREE.MeshStandardMaterial({ color: 0x0d1830, metalness: 0.9, roughness: 0.15 });
   const plat = new THREE.Mesh(platGeo, platMat);
   plat.position.y = -2.8; plat.receiveShadow = true;
   tapScene.add(plat);
-  // Platform ring lights
-  for (let i = 0; i < 8; i++) {
-    const a = i / 8 * Math.PI * 2;
-    const lm = new THREE.MeshStandardMaterial({ color: 0x4488ff, emissive: 0x2244ff, emissiveIntensity: 2 });
-    const lg = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), lm);
-    lg.position.set(Math.cos(a) * 1.2, -2.74, Math.sin(a) * 1.2);
+  // Внутреннее кольцо
+  const innerRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.9, 0.04, 8, 48),
+    new THREE.MeshStandardMaterial({ color: 0x4488ff, emissive: 0x2266ff, emissiveIntensity: 3, roughness: 0.1 })
+  );
+  innerRing.position.y = -2.75; innerRing.rotation.x = Math.PI/2;
+  tapScene.add(innerRing);
+  // Внешнее кольцо
+  const outerRing = new THREE.Mesh(
+    new THREE.TorusGeometry(1.55, 0.03, 8, 48),
+    new THREE.MeshStandardMaterial({ color: 0x7c5cfc, emissive: 0x5533cc, emissiveIntensity: 2, roughness: 0.1 })
+  );
+  outerRing.position.y = -2.75; outerRing.rotation.x = Math.PI/2;
+  tapScene.add(outerRing);
+  // Огни платформы — 12 штук
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2;
+    const isBlue = i % 3 !== 0;
+    const lm = new THREE.MeshStandardMaterial({ 
+      color: isBlue ? 0x4488ff : 0x7c5cfc, 
+      emissive: isBlue ? 0x2244ff : 0x5522cc, 
+      emissiveIntensity: 3 
+    });
+    const lg = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), lm);
+    lg.position.set(Math.cos(a) * 1.3, -2.74, Math.sin(a) * 1.3);
     tapScene.add(lg);
   }
-  // Support legs
+  // Ноги опоры — 4 штуки
   for (let i = 0; i < 4; i++) {
     const a = i / 4 * Math.PI * 2 + Math.PI / 4;
-    const lm = new THREE.MeshStandardMaterial({ color: 0x2a3a5a, metalness: 0.8, roughness: 0.3 });
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 1.4, 8), lm);
-    leg.position.set(Math.cos(a) * 0.75, -2.2, Math.sin(a) * 0.75);
-    leg.rotation.z = Math.cos(a) * 0.28; leg.rotation.x = Math.sin(a) * 0.28;
+    const lm = new THREE.MeshStandardMaterial({ color: 0x1a2a45, metalness: 0.85, roughness: 0.2 });
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 1.5, 8), lm);
+    leg.position.set(Math.cos(a) * 0.8, -2.15, Math.sin(a) * 0.8);
+    leg.rotation.z = Math.cos(a) * 0.3; leg.rotation.x = Math.sin(a) * 0.3;
     tapScene.add(leg);
   }
+  // Площадка под ракетой — блик
+  const glowGeo = new THREE.CircleGeometry(1.2, 32);
+  const glowMat = new THREE.MeshBasicMaterial({ 
+    color: 0x4488ff, transparent: true, opacity: 0.06, 
+    side: THREE.DoubleSide 
+  });
+  const glow = new THREE.Mesh(glowGeo, glowMat);
+  glow.position.y = -2.73; glow.rotation.x = -Math.PI/2;
+  tapScene.add(glow);
 
   // Rocket group
   rocketGroup = new THREE.Group();
@@ -950,7 +983,9 @@ function initThreeScene() {
   window.addEventListener('resize', () => {
     const nW = container.offsetWidth || window.innerWidth;
     const nH = container.offsetHeight || Math.floor(window.innerHeight * 0.45);
-    tapCamera.aspect = nW / nH; tapCamera.updateProjectionMatrix();
+    tapCamera.aspect = nW / nH;
+    tapCamera.fov = Math.max(55, Math.min(75, 55 + (1 - nH/window.innerHeight)*20));
+    tapCamera.updateProjectionMatrix();
     tapRenderer.setSize(nW, nH);
     c.style.width = nW + 'px'; c.style.height = nH + 'px';
   });
@@ -1255,6 +1290,16 @@ function animateTap() {
   // Update heat bar UI (outside canvas)
   const bw = document.getElementById('fuel-fill');
   if (bw) { /* handled by updateMainUI */ }
+
+  // Анимация колец платформы
+  tapScene.traverse(obj => {
+    if(obj.isMesh && obj.geometry.type === 'TorusGeometry'){
+      obj.rotation.z = tapFrame3d * 0.008;
+    }
+    if(obj.isMesh && obj.geometry.type === 'CircleGeometry'){
+      obj.material.opacity = 0.04 + Math.sin(tapFrame3d * 0.05) * 0.03;
+    }
+  });
 
   tapRenderer.render(tapScene, tapCamera);
   requestAnimationFrame(animateTap);
