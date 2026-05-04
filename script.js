@@ -2056,46 +2056,69 @@ function animateGalaxy(canvas){
     });
     ctx.setLineDash([]);
 
-    // Планеты
+    // Планеты — всегда видны, посещённые ярче
     GALAXY_PLANETS.forEach((p, i) => {
       const px = p.x*W, py = p.y*H;
       const pData = galaxyData?.planets?.find(d=>d.key===p.key);
       const visited = p.key === 'earth' || pData?.visited || (pData?.flights > 0);
-      const pulse   = Math.sin(galaxyFrame*.04 + i) * 2;
+      const pulse = Math.sin(galaxyFrame*.04 + i) * 1.5;
+      const r = p.r + pulse;
 
-      // Glow
-      const g = ctx.createRadialGradient(px,py,0,px,py,p.r*2.5);
-      g.addColorStop(0, visited ? p.color+'55' : 'rgba(40,40,60,.3)');
+      // Glow — у всех планет есть свечение
+      const glowR = visited ? p.r*3 : p.r*2;
+      const glowOpacity = visited ? '88' : '33';
+      const g = ctx.createRadialGradient(px,py,0,px,py,glowR);
+      g.addColorStop(0, p.color + glowOpacity);
       g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px,py,p.r*2.5,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(px,py,glowR,0,Math.PI*2); ctx.fill();
 
-      // Планета
-      const pg = ctx.createRadialGradient(px-p.r*.3,py-p.r*.3,p.r*.1,px,py,p.r+pulse);
-      pg.addColorStop(0, visited ? lighten(p.color) : '#2a2a3a');
-      pg.addColorStop(1, visited ? p.color : '#1a1a2a');
-      ctx.beginPath(); ctx.arc(px,py,p.r+pulse,0,Math.PI*2);
+      // Тело планеты
+      const pg = ctx.createRadialGradient(px-r*.3,py-r*.4,r*.1,px,py,r);
+      if(visited){
+        pg.addColorStop(0, lighten(p.color));
+        pg.addColorStop(1, p.color);
+      } else {
+        // Непосещённые — серые но видимые
+        pg.addColorStop(0, '#3a3a5a');
+        pg.addColorStop(1, '#1e1e35');
+      }
+      ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2);
       ctx.fillStyle = pg; ctx.fill();
-      ctx.strokeStyle = visited ? p.color+'99' : '#333355';
-      ctx.lineWidth = 1.5; ctx.stroke();
+
+      // Обводка
+      ctx.strokeStyle = visited ? p.color + 'bb' : 'rgba(100,100,160,0.5)';
+      ctx.lineWidth = visited ? 2 : 1;
+      ctx.stroke();
+
+      // Замок для непосещённых (кроме земли)
+      if(!visited && p.key !== 'earth'){
+        ctx.font = `${p.r*0.9}px serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.globalAlpha = 0.7;
+        ctx.fillText('🔒', px, py);
+        ctx.globalAlpha = 1;
+      } else {
+        // Emoji планеты
+        ctx.font = `${p.r*1.1}px serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.globalAlpha = 1;
+        ctx.fillText(p.emoji, px, py);
+        ctx.globalAlpha = 1;
+      }
 
       // Майнер индикатор
       if(pData?.has_miner){
-        ctx.beginPath(); ctx.arc(px+p.r*.7, py-p.r*.7, 5, 0, Math.PI*2);
+        ctx.beginPath(); ctx.arc(px+r*.7, py-r*.7, 5, 0, Math.PI*2);
         ctx.fillStyle = '#2ecc71'; ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
       }
 
-      // Emoji
-      ctx.font = `${p.r * 1.1}px serif`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.globalAlpha = visited ? 1 : .4;
-      ctx.fillText(p.emoji, px, py);
-      ctx.globalAlpha = 1;
-
       // Название
-      ctx.font = 'bold 10px -apple-system';
-      ctx.fillStyle = visited ? 'rgba(255,255,255,.8)' : 'rgba(255,255,255,.3)';
+      ctx.font = `bold ${Math.max(9,p.r*0.7)}px -apple-system`;
+      ctx.fillStyle = visited ? 'rgba(255,255,255,0.9)' : 'rgba(160,160,200,0.6)';
       ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      ctx.fillText(p.name, px, py + p.r + pulse + 4);
+      ctx.fillText(p.name, px, py + r + 4);
     });
 
     // Статистика
