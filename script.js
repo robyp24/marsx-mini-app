@@ -381,15 +381,21 @@ function getScreenState(){
 function initTapObjects(){
   // Создаём overlay canvas поверх всего в tap-area
   tapObjCanvas = document.createElement('canvas');
-  tapObjCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:all';
+  tapObjCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none';
+  // pointer-events:none — клики проходят сквозь canvas к кнопкам
+  // Тапы по объектам ловим на уровне tap-area-wrap
   const wrap = document.getElementById('tap-area-wrap');
   if(wrap) wrap.appendChild(tapObjCanvas);
 
-  tapObjCanvas.addEventListener('click', handleTapObj);
-  tapObjCanvas.addEventListener('touchstart', e=>{
-    e.preventDefault();
-    Array.from(e.changedTouches).forEach(t=>handleTapObj(t));
-  }, {passive:false});
+  // Вешаем на wrap — canvas прозрачен для событий
+  const tapWrap2 = document.getElementById('tap-area-wrap');
+  if(tapWrap2){
+    tapWrap2.addEventListener('click', handleTapObj);
+    tapWrap2.addEventListener('touchstart', e=>{
+      // Не вызываем preventDefault — иначе блокируем скролл и кнопки
+      Array.from(e.changedTouches).forEach(t=>handleTapObj(t));
+    }, {passive:true});
+  }
 
   // Запускаем мини-события каждые 2 часа
   setInterval(trySpawnMiniEvent, 7200000);
@@ -435,11 +441,15 @@ function handleTapObj(e){
   const state = getScreenState();
   if(state !== 'tap') return;
 
+  if(!tapObjCanvas) return;
   const rect = tapObjCanvas.getBoundingClientRect();
+  if(!rect.width || !rect.height) return;
   const scaleX = tapObjCanvas.width / rect.width;
   const scaleY = tapObjCanvas.height / rect.height;
   const mx = (e.clientX - rect.left)*scaleX;
   const my = (e.clientY - rect.top)*scaleY;
+  // Если клик вне области canvas — пропускаем
+  if(mx < 0 || my < 0 || mx > tapObjCanvas.width || my > tapObjCanvas.height) return;
 
   let hit = false;
   tapObjects.forEach(o=>{
