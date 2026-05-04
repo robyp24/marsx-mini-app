@@ -455,6 +455,11 @@ async function loadUserData(){
     G.inFlight       = (d.state==='in_flight');
     if(d.current_skin && d.current_skin!=='default'){
       currentSkinColors={_skin:d.current_skin};
+      G.inventory._activeSkin = d.current_skin;
+      // Применяем скин к ракете после загрузки
+      if(rocketGroup && THREE){
+        setTimeout(()=>buildRocket3D(G.inventory), 500);
+      }
     }
     if(d.autopilot_result) showAutopilotResult(d.autopilot_result);
     updateMainUI();
@@ -1942,10 +1947,15 @@ let galaxyData = null, galaxyFrame = 0, galaxyAnimId = null;
 
 async function showGalaxy(){
   showScreen('galaxy-screen');
-  const res = await apiGet('/galaxy_map');
-  if(res?.status === 'success') galaxyData = res.data;
-  // Ждём пока экран отрендерится
+  // Сначала рисуем с имеющимися данными
   setTimeout(initGalaxyCanvas, 50);
+  // Параллельно грузим данные и перерисовываем
+  const res = await apiGet('/galaxy_map');
+  if(res?.status === 'success'){
+    galaxyData = res.data;
+    // Перерисовываем с актуальными данными
+    setTimeout(initGalaxyCanvas, 50);
+  }
 }
 
 function initGalaxyCanvas(){
@@ -2009,8 +2019,8 @@ function animateGalaxy(canvas){
 
     // Орбиты (пунктирные)
     ctx.setLineDash([4, 8]);
-    ctx.strokeStyle = 'rgba(79,142,247,.12)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(79,142,247,.20)';
+    ctx.lineWidth = 1.5;
     const earthX = .5*W, earthY = .82*H;
     GALAXY_PLANETS.forEach(p => {
       if(p.key === 'earth') return;
@@ -2024,7 +2034,7 @@ function animateGalaxy(canvas){
     GALAXY_PLANETS.forEach((p, i) => {
       const px = p.x*W, py = p.y*H;
       const pData = galaxyData?.planets?.find(d=>d.key===p.key);
-      const visited = pData?.visited || p.key === 'earth';
+      const visited = p.key === 'earth' || pData?.visited || (pData?.flights > 0);
       const pulse   = Math.sin(galaxyFrame*.04 + i) * 2;
 
       // Glow
@@ -2606,11 +2616,20 @@ async function equipSkin(key){
   if(res?.status==='success'){
     currentSkinColors = { ...(res.data.colors||{}), _skin: key };
     rocketStars = null;
-    // Перекрашиваем 3D ракету под скин
-    if(rocketGroup && THREE) applyRocketSkin3D(key);
+    // Обновляем активный скин в инвентаре
+    if(!G.inventory) G.inventory = {};
+    G.inventory._activeSkin = key;
+    // Пересобираем ракету с новым скином
+    if(rocketGroup && THREE){
+      buildRocket3D(G.inventory);
+    }
     showToast('🎨 Скин применён!');
+    if(window.Telegram?.WebApp?.HapticFeedback)
+      Telegram.WebApp.HapticFeedback.notificationOccurred('success');
     showSkins();
-  } else showToast(res?.message||'Ошибка');
+  } else {
+    showToast(res?.message||'Ошибка применения скина');
+  }
 }
 
 // ══════════════════════════════════════════
