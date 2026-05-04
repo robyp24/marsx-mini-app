@@ -1506,6 +1506,58 @@ async function finalizeFlight(planet){
 // ══════════════════════════════════════════
 //  SHOP
 // ══════════════════════════════════════════
+
+// ══════════════════════════════════════════
+//  ФОНЫ — рендер магазина
+// ══════════════════════════════════════════
+async function renderBackgrounds(){
+  const list = document.getElementById('shop-items');
+  if(!list) return;
+  list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">Загрузка фонов...</div>';
+  document.getElementById('shop-gc-display').textContent = Math.floor(G.gc) + ' GC';
+
+  const res = await apiGet('/backgrounds_info');
+  list.innerHTML = '';
+
+  if(!res || res.status !== 'success'){
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Ошибка загрузки</div>';
+    return;
+  }
+
+  res.data.backgrounds.forEach(bg => {
+    const div = document.createElement('div');
+    div.className = 'shop-item' + (bg.active ? ' owned' : '');
+
+    // Превью цвета
+    const pc = bg.colors?.primary || '#07091a';
+    const sc = bg.colors?.stars   || '#4f8ef7';
+
+    let btnHtml;
+    if(bg.active){
+      btnHtml = '<span class="shop-btn owned-btn" style="background:var(--green);color:#fff">✓ Активен</span>';
+    } else if(bg.owned){
+      btnHtml = `<button class="shop-btn" onclick="equipBg('${bg.id}')">Надеть</button>`;
+    } else if(bg.currency === 'stars'){
+      btnHtml = `<button class="shop-btn" onclick="buyBg('${bg.id}')">⭐ ${bg.price}</button>`;
+    } else {
+      const canAfford = G.gc >= bg.price;
+      btnHtml = `<button class="shop-btn ${canAfford?'':'owned-btn'}" onclick="buyBg('${bg.id}')">${canAfford?'':'🔒 '}${bg.price} GC</button>`;
+    }
+
+    div.innerHTML = `
+      <div class="shop-icon" style="background:linear-gradient(135deg,${pc},${pc}dd);border:2px solid ${sc}44;font-size:26px;box-shadow:0 0 12px ${sc}33">
+        ${bg.emoji}
+      </div>
+      <div class="shop-info">
+        <div class="shop-name">${bg.name}</div>
+        <div class="shop-desc">${bg.desc}</div>
+        <div class="shop-price gc">${bg.currency==='stars'?'⭐ Stars':'💰 GC'}: ${bg.price===0?'Бесплатно':bg.price}</div>
+      </div>
+      ${btnHtml}`;
+    list.appendChild(div);
+  });
+}
+
 function setShopTab(tab){
   G.shopTab=tab;
   document.querySelectorAll('.shop-tab').forEach((t,i)=>{
@@ -1892,14 +1944,22 @@ async function showGalaxy(){
   showScreen('galaxy-screen');
   const res = await apiGet('/galaxy_map');
   if(res?.status === 'success') galaxyData = res.data;
-  initGalaxyCanvas();
+  // Ждём пока экран отрендерится
+  setTimeout(initGalaxyCanvas, 50);
 }
 
 function initGalaxyCanvas(){
   const canvas = document.getElementById('galaxy-canvas');
   if(!canvas) return;
-  canvas.width  = canvas.offsetWidth  || window.innerWidth;
-  canvas.height = canvas.offsetHeight || window.innerHeight - 80;
+  // Берём размер из родителя если canvas ещё не имеет размера
+  const parent = canvas.parentElement;
+  const W = parent?.offsetWidth  || window.innerWidth;
+  const H = parent?.offsetHeight || (window.innerHeight - 120);
+  canvas.width  = W;
+  canvas.height = H;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  if(galaxyAnimId) cancelAnimationFrame(galaxyAnimId);
   animateGalaxy(canvas);
 
   canvas.addEventListener('click', e => {
@@ -1913,7 +1973,7 @@ function initGalaxyCanvas(){
       if(dist < p.r + 14){
         const pData = galaxyData?.planets?.find(d=>d.key===p.key);
         const tip = document.getElementById('galaxy-tooltip');
-        const visited = pData?.visited || p.key === 'earth';
+        const visited = p.key === 'earth' || pData?.visited || (pData?.flights > 0);
         const flights = pData?.flights || 0;
         const minerLv = pData?.miner_level || 0;
         tip.innerHTML = `<b style="color:#4f8ef7">${p.emoji} ${p.name}</b><br>${visited?`✅ Посещена · ${flights} полётов`:'🔒 Не посещена'}${minerLv>0?`<br>⛏ Майнер ур.${minerLv}`:''}`;
@@ -1931,11 +1991,9 @@ function animateGalaxy(canvas){
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
 
-  // Генерируем звёзды один раз
-  if(!animateGalaxy._stars){
-    animateGalaxy._stars = [];
-    for(let i=0;i<150;i++) animateGalaxy._stars.push({x:Math.random(),y:Math.random(),r:.3+Math.random()*1.2,o:.1+Math.random()*.6});
-  }
+  // Генерируем звёзды каждый раз для нового canvas
+  const starSeed = [];
+  for(let i=0;i<150;i++) starSeed.push({x:Math.random(),y:Math.random(),r:.3+Math.random()*1.2,o:.1+Math.random()*.6});
 
   function frame(){
     galaxyFrame++;
@@ -1943,7 +2001,7 @@ function animateGalaxy(canvas){
     ctx.fillRect(0,0,W,H);
 
     // Звёзды
-    for(const s of animateGalaxy._stars){
+    for(const s of starSeed){
       ctx.beginPath(); ctx.arc(s.x*W, s.y*H, s.r, 0, Math.PI*2);
       ctx.fillStyle = `rgba(255,255,255,${s.o + Math.sin(galaxyFrame*.03+s.x*10)*.05})`;
       ctx.fill();
