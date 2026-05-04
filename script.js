@@ -1512,6 +1512,32 @@ async function finalizeFlight(planet){
 //  SHOP
 // ══════════════════════════════════════════
 
+
+async function buyBg(bgId){
+  const res = await apiPost('/buy_background', {bg_id: bgId});
+  if(res?.status === 'success'){
+    showToast('✅ ' + (res.data?.message || 'Фон куплен!'));
+    await loadUserData();
+    applyBackground(res.data?.colors, bgId);
+    renderBackgrounds();
+  } else {
+    showToast(res?.message || 'Ошибка покупки');
+  }
+}
+
+async function equipBg(bgId){
+  const res = await apiPost('/equip_background', {bg_id: bgId});
+  if(res?.status === 'success'){
+    showToast('🎨 ' + (res.data?.message || 'Фон применён!'));
+    applyBackground(res.data?.colors, bgId);
+    if(window.Telegram?.WebApp?.HapticFeedback)
+      Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+    renderBackgrounds();
+  } else {
+    showToast(res?.message || 'Ошибка');
+  }
+}
+
 // ══════════════════════════════════════════
 //  ФОНЫ — рендер магазина
 // ══════════════════════════════════════════
