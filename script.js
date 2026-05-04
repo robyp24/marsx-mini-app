@@ -20,182 +20,133 @@ let bgParticles = [];
 
 function initBgCanvas(){
   bgCanvas = document.createElement('canvas');
-  bgCanvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none';
-  bgCanvas.width  = window.innerWidth;
-  bgCanvas.height = window.innerHeight;
-  document.getElementById('stars-bg').appendChild(bgCanvas);
+  // Фон ПОЗАДИ tap-canvas но поверх звёзд
+  bgCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;border-radius:0';
+  // Вставляем в tap-area-wrap ПЕРЕД tap-canvas
+  const tapWrap = document.getElementById('tap-area-wrap');
+  const tapCv   = document.getElementById('tap-canvas');
+  if(tapWrap && tapCv){
+    tapWrap.insertBefore(bgCanvas, tapCv);
+  } else {
+    document.getElementById('stars-bg').appendChild(bgCanvas);
+  }
   bgCtx = bgCanvas.getContext('2d');
-  window.addEventListener('resize', ()=>{
-    bgCanvas.width  = window.innerWidth;
-    bgCanvas.height = window.innerHeight;
-  });
+  // Также делаем tap-canvas прозрачным через CSS
+  if(tapCv) tapCv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:1;display:block';
+  // Скрываем старые звёзды — они заменены
+  document.querySelectorAll('.star-dot').forEach(s=>s.style.display='none');
 }
 
 function animateBg(colors, nebulaType){
   if(bgAnimFrame) cancelAnimationFrame(bgAnimFrame);
-  if(!bgCanvas) initBgCanvas();
-  const W = bgCanvas.width, H = bgCanvas.height;
-  const nebConf = BG_NEBULA_CONFIGS[nebulaType] || null;
-  
-  // Генерируем звёзды
-  const stars = [];
-  const starCount = 200;
-  const starColor = colors.stars || '#4f8ef7';
-  for(let i=0;i<starCount;i++){
-    stars.push({
-      x: Math.random()*W, y: Math.random()*H,
-      r: Math.random()*1.5+0.3,
-      o: Math.random()*0.6+0.2,
-      speed: Math.random()*0.3+0.05,
-      twinkle: Math.random()*Math.PI*2,
-    });
-  }
-  
-  // Облака туманности
-  const clouds = [];
-  if(nebConf){
-    for(let i=0;i<6;i++){
-      clouds.push({
-        x: Math.random()*W, y: Math.random()*H,
-        r: 80+Math.random()*150,
-        color: nebConf.clouds[i%nebConf.clouds.length],
-        dx: (Math.random()-0.5)*0.15,
-        dy: (Math.random()-0.5)*0.10,
-        pulse: Math.random()*Math.PI*2,
+  if(!bgCanvas || !bgCtx) initBgCanvas();
+
+  // Кэш звёзд
+  let starCache = null;
+  let cloudCache = null;
+
+  function getStars(W, H, count){
+    if(starCache && starCache.W===W && starCache.H===H) return starCache.data;
+    starCache = {W, H, data:[]};
+    const sc = colors.stars||'#4f8ef7';
+    const hex = sc.replace('#','');
+    const r=parseInt(hex.slice(0,2),16)||150;
+    const g=parseInt(hex.slice(2,4),16)||180;
+    const b=parseInt(hex.slice(4,6),16)||255;
+    for(let i=0;i<count;i++){
+      starCache.data.push({
+        x:Math.random()*W, y:Math.random()*H,
+        rad:Math.random()*1.8+0.2,
+        ph:Math.random()*Math.PI*2,
+        r,g,b,
+        bright: Math.random()>0.93 // редкие яркие звёзды
       });
     }
+    return starCache.data;
   }
 
-  let frame = 0;
-  function draw(){
-    frame++;
-    bgCtx.clearRect(0,0,W,H);
-    
-    // Фон градиент
-    const grd = bgCtx.createLinearGradient(0,0,W,H);
-    grd.addColorStop(0, colors.primary   || '#07091a');
-    grd.addColorStop(1, colors.secondary || '#0d1228');
-    bgCtx.fillStyle = grd;
-    bgCtx.fillRect(0,0,W,H);
-    
-    // Туманность
-    clouds.forEach(c=>{
-      c.x += c.dx; c.y += c.dy;
-      c.pulse += 0.008;
-      if(c.x < -c.r) c.x = W+c.r;
-      if(c.x > W+c.r) c.x = -c.r;
-      if(c.y < -c.r) c.y = H+c.r;
-      if(c.y > H+c.r) c.y = -c.r;
-      const pulse = 1 + Math.sin(c.pulse)*0.15;
-      const g = bgCtx.createRadialGradient(c.x,c.y,0,c.x,c.y,c.r*pulse);
-      g.addColorStop(0, c.color);
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      bgCtx.fillStyle = g;
-      bgCtx.beginPath();
-      bgCtx.arc(c.x,c.y,c.r*pulse,0,Math.PI*2);
-      bgCtx.fill();
+  function getClouds(W, H, type){
+    // Маппинг типов из бэкенда
+    const typeMap = {nebula:'purple',mars:'red',galaxy:'blue',blackhole:'dark',aurora:'green',supernova:'fire',deepspace:'deep',default:null};
+    const resolvedType = typeMap[type] || type;
+    if(cloudCache && cloudCache.W===W && cloudCache.H===H && cloudCache.type===resolvedType) return cloudCache.data;
+    cloudCache = {W, H, type:resolvedType, data:[]};
+    const configs = {
+      purple:[[.35,.35,180,160,'rgba(150,50,255,0.55)'],[.65,.55,140,130,'rgba(80,20,220,0.45)'],[.5,.25,100,90,'rgba(200,80,255,0.40)'],[.2,.65,90,80,'rgba(120,40,200,0.35)'],[.8,.3,80,70,'rgba(180,60,255,0.30)']],
+      red:   [[.35,.35,150,120,'rgba(255,80,20,0.45)'],[.65,.55,120,100,'rgba(220,50,10,0.40)'],[.5,.7,90,80,'rgba(180,60,20,0.35)'],[.2,.25,80,70,'rgba(200,80,30,0.30)']],
+      blue:  [[.5,.45,180,140,'rgba(60,120,255,0.45)'],[.3,.35,120,100,'rgba(80,100,220,0.35)'],[.7,.55,100,80,'rgba(100,150,255,0.30)'],[.5,.2,90,70,'rgba(40,80,200,0.25)']],
+      dark:  [[.5,.4,140,120,'rgba(80,30,200,0.50)'],[.3,.6,110,90,'rgba(60,20,180,0.40)'],[.7,.3,90,70,'rgba(100,40,220,0.35)']],
+      green: [[.3,.3,140,110,'rgba(0,220,100,0.40)'],[.65,.5,120,90,'rgba(0,200,130,0.35)'],[.5,.7,90,70,'rgba(0,255,150,0.30)'],[.8,.25,80,60,'rgba(50,230,120,0.25)']],
+      fire:  [[.5,.4,160,130,'rgba(255,120,20,0.55)'],[.25,.55,120,100,'rgba(255,80,10,0.45)'],[.75,.35,100,80,'rgba(255,150,40,0.40)'],[.5,.7,80,60,'rgba(220,60,10,0.35)']],
+      deep:  [[.4,.5,160,120,'rgba(20,50,180,0.35)'],[.7,.3,110,80,'rgba(40,30,160,0.25)'],[.2,.7,90,70,'rgba(30,40,200,0.20)']],
+    };
+    if(!resolvedType || !configs[resolvedType]) return [];
+    const list = configs[type] || [];
+    list.forEach(([cx,cy,rw,rh,col])=>{
+      cloudCache.data.push({x:W*cx, y:H*cy, rw, rh, col, ph:Math.random()*Math.PI*2});
     });
-    
-    // Звёзды
-    stars.forEach(s=>{
-      s.twinkle += s.speed*0.05;
-      const opacity = s.o + Math.sin(s.twinkle)*0.3;
-      bgCtx.beginPath();
-      bgCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
-      bgCtx.fillStyle = starColor.replace(')',`,${Math.max(0,Math.min(1,opacity))})`).replace('rgb(','rgba(').replace('#','');
-      // Парсим hex цвет
-      const hex = starColor.replace('#','');
-      if(hex.length===6){
-        const r=parseInt(hex.slice(0,2),16);
-        const g=parseInt(hex.slice(2,4),16);
-        const b=parseInt(hex.slice(4,6),16);
-        bgCtx.fillStyle = `rgba(${r},${g},${b},${Math.max(0,Math.min(1,opacity))})`;
-      } else {
-        bgCtx.fillStyle = starColor;
-      }
-      bgCtx.fill();
-      // Блик для ярких звёзд
-      if(s.r > 1.2 && opacity > 0.7){
-        bgCtx.strokeStyle = bgCtx.fillStyle;
-        bgCtx.lineWidth = 0.5;
-        bgCtx.beginPath();
-        bgCtx.moveTo(s.x-s.r*3,s.y);
-        bgCtx.lineTo(s.x+s.r*3,s.y);
-        bgCtx.moveTo(s.x,s.y-s.r*3);
-        bgCtx.lineTo(s.x,s.y+s.r*3);
-        bgCtx.stroke();
-      }
-    });
-    
-    bgAnimFrame = requestAnimationFrame(draw);
+    return cloudCache.data;
   }
-  draw();
-}
 
-async function renderBackgrounds(){
-  const list = document.getElementById('shop-items');
-  list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Загрузка...</div>';
-  document.getElementById('shop-gc-display').textContent = `${Math.floor(G.gc)} GC`;
-  const res = await apiGet('/backgrounds_info');
-  list.innerHTML = '';
-  if(!res || res.status !== 'success') {
-    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Ошибка загрузки</div>';
-    return;
-  }
-  res.data.backgrounds.forEach(bg => {
-    const div = document.createElement('div');
-    div.className = `shop-item ${bg.active ? 'owned' : ''}`;
-    div.style.cssText = 'position:relative;overflow:hidden';
-    // Превью цвета фона
-    const previewColor = bg.colors?.primary || '#07091a';
-    const starColor    = bg.colors?.stars   || '#4f8ef7';
-    let btnHtml;
-    if(bg.active) {
-      btnHtml = '<span class="shop-btn owned-btn">✓ Активен</span>';
-    } else if(bg.owned) {
-      btnHtml = `<button class="shop-btn" onclick="equipBg('${bg.id}')">Надеть</button>`;
-    } else if(bg.currency === 'stars') {
-      btnHtml = `<button class="shop-btn" onclick="buyBg('${bg.id}')">⭐ ${bg.price}</button>`;
-    } else {
-      btnHtml = `<button class="shop-btn ${G.gc >= bg.price ? '' : 'owned-btn'}" onclick="buyBg('${bg.id}')">💰 ${bg.price} GC</button>`;
+  function drawFrame(){
+    if(!bgCanvas || !bgCtx) return;
+    const W = bgCanvas.width, H = bgCanvas.height;
+    if(!W || !H){ bgAnimFrame=requestAnimationFrame(drawFrame); return; }
+    const t = (Date.now()-startTime)*0.001;
+    const ctx = bgCtx;
+
+    // Фон градиент — на весь экран
+    const grd = ctx.createLinearGradient(0,0,W,H);
+    grd.addColorStop(0,  colors.primary   || '#07091a');
+    grd.addColorStop(0.5,colors.secondary || '#0d1228');
+    grd.addColorStop(1,  colors.primary   || '#07091a');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0,0,W,H);
+
+    // Туманности
+    if(nebulaType){
+      const clouds = getClouds(W, H, nebulaType);
+      clouds.forEach(c=>{
+        const pulse = 1 + Math.sin(t*.4+c.ph)*.1;
+        const g = ctx.createRadialGradient(
+          c.x+Math.sin(t*.15+c.ph)*10, c.y+Math.cos(t*.12+c.ph)*8, 0,
+          c.x, c.y, Math.max(c.rw, c.rh)*pulse
+        );
+        g.addColorStop(0, c.col);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.scale(c.rw/100, c.rh/100);
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(0,0,100,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+      });
     }
-    div.innerHTML = `
-      <div class="shop-icon" style="background:${previewColor};border:2px solid ${starColor};font-size:26px">
-        ${bg.emoji}
-      </div>
-      <div class="shop-info">
-        <div class="shop-name">${bg.name}</div>
-        <div class="shop-desc">${bg.desc}</div>
-        <div class="shop-price gc">${bg.currency === 'stars' ? '⭐ Stars' : '💰 GC'}: ${bg.price === 0 ? 'Бесплатно' : bg.price}</div>
-      </div>
-      ${btnHtml}`;
-    list.appendChild(div);
-  });
+
+    // Звёзды
+    const count = nebulaType ? 200 : 150;
+    const strs = getStars(W, H, count);
+    strs.forEach(s=>{
+      const op = Math.max(0.1, Math.min(1, 0.5+Math.sin(t*.6+s.ph)*.45));
+      ctx.fillStyle = `rgba(${s.r},${s.g},${s.b},${op})`;
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.rad,0,Math.PI*2); ctx.fill();
+      if(s.bright && s.rad>1.2 && op>0.6){
+        ctx.strokeStyle = `rgba(${s.r},${s.g},${s.b},${op*.4})`;
+        ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(s.x-s.rad*3,s.y); ctx.lineTo(s.x+s.rad*3,s.y);
+        ctx.moveTo(s.x,s.y-s.rad*3); ctx.lineTo(s.x,s.y+s.rad*3);
+        ctx.stroke();
+      }
+    });
+
+    bgAnimFrame = requestAnimationFrame(drawFrame);
+  }
+
+  const startTime = Date.now();
+  drawFrame();
 }
 
-async function buyBg(bgId){
-  const res = await apiPost('/buy_background', {bg_id: bgId});
-  if(res?.status === 'success'){
-    showToast('✅ ' + res.data.message);
-    G.gc -= 0; // обновится при следующем loadUserData
-    applyBackground(res.data.colors, bgId);
-    await loadUserData();
-    renderBackgrounds();
-  } else {
-    showToast(res?.message || 'Ошибка покупки');
-  }
-}
-
-async function equipBg(bgId){
-  const res = await apiPost('/equip_background', {bg_id: bgId});
-  if(res?.status === 'success'){
-    showToast('🎨 ' + res.data.message);
-    applyBackground(res.data.colors, bgId);
-    renderBackgrounds();
-  } else {
-    showToast(res?.message || 'Ошибка');
-  }
-}
 
 function applyBackground(colors, bgId){
   if(!colors) return;
@@ -209,17 +160,13 @@ function applyBackground(colors, bgId){
   root.style.setProperty('--bg3', adjustColor(colors.secondary || '#0d1228', 10));
   root.style.setProperty('--card', adjustColor(colors.primary || '#07091a', 15));
   // Обновляем Three.js сцену
+  // Обновляем только свет — фон рисуется отдельно
   if(tapScene && THREE){
-    const c = new THREE.Color(colors.primary || '#07091a');
-    tapScene.background = c;
-    tapScene.fog = new THREE.FogExp2(colors.primary || '#07091a', 0.04);
     if(engLight) engLight.color = new THREE.Color(colors.stars || '#4488ff');
   }
   // Обновляем Three.js сцену
+  // Обновляем только свет — фон рисуется отдельно
   if(tapScene && THREE){
-    const c = new THREE.Color(colors.primary || '#07091a');
-    tapScene.background = c;
-    tapScene.fog = new THREE.FogExp2(colors.primary || '#07091a', 0.04);
     if(engLight) engLight.color = new THREE.Color(colors.stars || '#4488ff');
   }
   // Скрываем стандартные звёзды (заменены canvas)
@@ -401,6 +348,9 @@ function onTap(e){
 window.onload = () => {
   initSplash();
   createStarsBg();
+  // Инициализируем фон ДО Three.js — он должен быть позади ракеты
+  initBgCanvas();
+  animateBg({primary:'#07091a',secondary:'#0d1228',stars:'#4f8ef7'}, null);
   initTapCanvas();
   initTelegram();
   setInterval(passiveTick,   1000);
@@ -423,6 +373,8 @@ function initTelegram(){
   G.tgId     = G.tgUser.id || null;
   G.initData = tg.initData || '';
   applyUserUI();
+  // Сразу показываем дефолтный фон пока грузятся данные
+  applyBackground({primary:'#07091a',secondary:'#0d1228',stars:'#4f8ef7'}, 'default');
   if(!G.tgId){
     setTimeout(()=>{
       G.tgUser = tg.initDataUnsafe?.user || {first_name:'Командор',id:12345};
@@ -780,11 +732,10 @@ const PLANET_ENV_COLORS = {
 
 function updateTapPlanet(planetKey) {
   tapCurrentPlanet = planetKey || 'earth';
-  if (tapScene) {
+  // Только свет меняем — фон рисуется отдельно
+  if (tapScene && engLight) {
     const env = PLANET_ENV_COLORS[tapCurrentPlanet] || PLANET_ENV_COLORS.earth;
-    tapScene.background = new THREE.Color(env.bg);
-    tapScene.fog = new THREE.FogExp2(env.fog, 0.05);
-    if (engLight) engLight.color = new THREE.Color(env.light);
+    engLight.color = new THREE.Color(env.light);
   }
 }
 
@@ -849,9 +800,12 @@ function initThreeScene() {
   const c = document.getElementById('tap-canvas');
   c.width = W; c.height = H;
   c.style.width = W + 'px'; c.style.height = H + 'px';
+  c.style.position = 'absolute';
+  c.style.zIndex = '1';
 
   // Renderer
-  tapRenderer = new THREE.WebGLRenderer({ canvas: c, antialias: true, alpha: false });
+  tapRenderer = new THREE.WebGLRenderer({ canvas: c, antialias: true, alpha: true });
+  tapRenderer.setClearColor(0x000000, 0); // прозрачный фон
   tapRenderer.setSize(W, H);
   tapRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   tapRenderer.shadowMap.enabled = true;
@@ -862,8 +816,9 @@ function initThreeScene() {
   // Scene
   tapScene = new THREE.Scene();
   const env = PLANET_ENV_COLORS[tapCurrentPlanet] || PLANET_ENV_COLORS.earth;
-  tapScene.background = new THREE.Color(env.bg);
-  tapScene.fog = new THREE.FogExp2(env.fog, 0.025); // менее плотный туман
+  // Фон прозрачный — рисуется на отдельном canvas позади
+  tapScene.background = null;
+  tapScene.fog = null;
 
   // Camera
   // FOV адаптируется под высоту — на маленьких экранах ракета меньше
