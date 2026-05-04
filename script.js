@@ -345,6 +345,359 @@ function onTap(e){
   doTap(e);
 }
 
+
+// ══════════════════════════════════════════
+//  НОВЫЙ ГЛАВНЫЙ ЭКРАН — объекты и состояния
+// ══════════════════════════════════════════
+
+const TAP_OBJECTS_DEF = [
+  {emoji:'☄️', color:'#e87040', reward:8,  fuelReward:6,  label:'+6F',  prob:0.30},
+  {emoji:'💎', color:'#60c0ff', reward:15, fuelReward:12, label:'+12F', prob:0.20},
+  {emoji:'⚡', color:'#f5c518', reward:12, fuelReward:10, label:'+10F', prob:0.25},
+  {emoji:'🌀', color:'#a78bfa', reward:10, fuelReward:8,  label:'+8F',  prob:0.15},
+  {emoji:'🔮', color:'#f472b6', reward:25, fuelReward:20, label:'+20F', prob:0.07},
+  {emoji:'💠', color:'#38bdf8', reward:35, fuelReward:30, label:'+30F', prob:0.03},
+];
+
+let tapObjects   = [];
+let tapFloats    = [];
+let tapParticles = [];
+let tapObjCanvas = null;
+let tapObjCtx    = null;
+let tapObjFrame  = 0;
+let tapObjTimer  = 0;
+let tapCombo     = 0;
+let tapLastHit   = 0;
+let miniEventActive = null;
+let miniEventTimer  = 0;
+
+// Состояние экрана: tap / flying / autopilot
+function getScreenState(){
+  if(G.inventory?.autopilot && G.inFlight) return 'autopilot';
+  if(G.inFlight && !G.inventory?.autopilot) return 'flying';
+  return 'tap';
+}
+
+function initTapObjects(){
+  // Создаём overlay canvas поверх всего в tap-area
+  tapObjCanvas = document.createElement('canvas');
+  tapObjCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:all';
+  const wrap = document.getElementById('tap-area-wrap');
+  if(wrap) wrap.appendChild(tapObjCanvas);
+
+  tapObjCanvas.addEventListener('click', handleTapObj);
+  tapObjCanvas.addEventListener('touchstart', e=>{
+    e.preventDefault();
+    Array.from(e.changedTouches).forEach(t=>handleTapObj(t));
+  }, {passive:false});
+
+  // Запускаем мини-события каждые 2 часа
+  setInterval(trySpawnMiniEvent, 7200000);
+  // Первое мини-событие через 30 мин (для теста — через 5 мин)
+  setTimeout(trySpawnMiniEvent, 300000);
+
+  animateTapObjects();
+}
+
+function spawnTapObject(){
+  const W = tapObjCanvas.width || 300;
+  const H = tapObjCanvas.height || 280;
+
+  // Выбираем тип по вероятности
+  const roll = Math.random();
+  let cumProb = 0, def = TAP_OBJECTS_DEF[0];
+  for(const d of TAP_OBJECTS_DEF){
+    cumProb += d.prob;
+    if(roll <= cumProb){ def = d; break; }
+  }
+
+  // Множитель от мини-события
+  const mult = miniEventActive ? miniEventActive.mult : 1;
+
+  tapObjects.push({
+    x: 40 + Math.random()*(W-80),
+    y: -50,
+    vy: 0.6 + Math.random()*0.5,
+    vx: (Math.random()-0.5)*0.4,
+    r: 22 + Math.random()*8,
+    emoji: def.emoji,
+    color: def.color,
+    fuelReward: Math.round(def.fuelReward * mult),
+    label: mult > 1 ? `+${Math.round(def.fuelReward*mult)}F ×${mult}` : def.label,
+    opacity: 0,
+    scale: 0,
+    alive: true,
+    wobble: Math.random()*Math.PI*2,
+  });
+}
+
+function handleTapObj(e){
+  const state = getScreenState();
+  if(state !== 'tap') return;
+
+  const rect = tapObjCanvas.getBoundingClientRect();
+  const scaleX = tapObjCanvas.width / rect.width;
+  const scaleY = tapObjCanvas.height / rect.height;
+  const mx = (e.clientX - rect.left)*scaleX;
+  const my = (e.clientY - rect.top)*scaleY;
+
+  let hit = false;
+  tapObjects.forEach(o=>{
+    if(!o.alive) return;
+    const dx=mx-o.x, dy=my-o.y;
+    if(Math.sqrt(dx*dx+dy*dy) < o.r+10){
+      hit = true;
+      o.alive = false;
+
+      // Комбо
+      const now = Date.now();
+      if(now - tapLastHit < 500) tapCombo++;
+      else tapCombo = 1;
+      tapLastHit = now;
+      const comboMult = tapCombo >= 8 ? 3 : tapCombo >= 4 ? 2 : 1;
+      const earned = o.fuelReward * comboMult;
+
+      // Добавляем топливо
+      G.fuel = Math.min(G.fuelMax, G.fuel + earned);
+      updateMainUI();
+
+      // Флоат
+      const label = comboMult > 1 ? `+${earned}F ×${comboMult}` : `+${earned}F`;
+      const color = comboMult >= 3 ? '#f5c518' : comboMult === 2 ? '#a78bfa' : '#60d0ff';
+      tapFloats.push({x:o.x, y:o.y, vy:-1.5, life:1, text:label, color});
+
+      // Частицы
+      for(let i=0;i<14;i++){
+        const a=Math.random()*Math.PI*2, sp=2+Math.random()*5;
+        tapParticles.push({x:o.x,y:o.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,r:2+Math.random()*3,life:1,color:o.color,decay:.04+Math.random()*.03});
+      }
+
+      // Комбо дисплей
+      if(comboMult >= 2){
+        const el = document.getElementById('combo-display');
+        if(el){
+          el.textContent = comboMult >= 3 ? '⚡ ×3 MEGA!' : '✨ ×2 COMBO';
+          el.classList.add('show');
+          clearTimeout(el._t);
+          el._t = setTimeout(()=>el.classList.remove('show'), 900);
+        }
+      }
+
+      // Хаптик
+      if(window.Telegram?.WebApp?.HapticFeedback)
+        Telegram.WebApp.HapticFeedback.impactOccurred(comboMult>=3?'heavy':'light');
+    }
+  });
+  tapObjects = tapObjects.filter(o=>o.alive);
+}
+
+function animateTapObjects(){
+  tapObjFrame++;
+  const t = tapObjFrame * 0.025;
+
+  const wrap = document.getElementById('tap-area-wrap');
+  if(!wrap || !tapObjCanvas) { requestAnimationFrame(animateTapObjects); return; }
+
+  const W = wrap.offsetWidth || 300;
+  const H = wrap.offsetHeight || 280;
+  if(tapObjCanvas.width !== W || tapObjCanvas.height !== H){
+    tapObjCanvas.width = W;
+    tapObjCanvas.height = H;
+  }
+
+  const ctx = tapObjCtx || (tapObjCtx = tapObjCanvas.getContext('2d'));
+  ctx.clearRect(0,0,W,H);
+
+  const state = getScreenState();
+
+  if(state === 'tap'){
+    // Спавн объектов
+    tapObjTimer++;
+    const spawnRate = miniEventActive ? 40 : 70;
+    if(tapObjTimer > spawnRate && tapObjects.length < 6){
+      tapObjTimer = 0;
+      spawnTapObject();
+    }
+    if(tapObjects.length === 0 && tapObjTimer > 30){
+      tapObjTimer = 0;
+      spawnTapObject();
+    }
+
+    // Рисуем пульсирующие кольца зоны тапа
+    const cx=W/2, cy=H*0.45;
+    for(let r=0;r<3;r++){
+      const rad = 55+r*40+Math.sin(t*0.7+r)*4;
+      const op = 0.04+Math.sin(t*0.5+r)*0.02;
+      ctx.strokeStyle=`rgba(79,142,247,${op})`;
+      ctx.lineWidth=1;
+      ctx.setLineDash([5,8]);
+      ctx.beginPath();ctx.arc(cx,cy,rad,0,Math.PI*2);ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Обновляем и рисуем объекты
+    tapObjects.forEach(o=>{
+      o.y += o.vy;
+      o.x += o.vx;
+      o.wobble += 0.04;
+      o.opacity = Math.min(1, o.opacity+0.1);
+      o.scale = Math.min(1, o.scale+0.12);
+      o.alive = o.alive && o.y < H+60;
+
+      ctx.save();
+      ctx.globalAlpha = o.opacity;
+      ctx.translate(o.x, o.y);
+      ctx.scale(o.scale, o.scale);
+      // Свечение
+      const g = ctx.createRadialGradient(0,0,0,0,0,o.r*2);
+      g.addColorStop(0, o.color+'44');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle=g;
+      ctx.beginPath();ctx.arc(0,0,o.r*2,0,Math.PI*2);ctx.fill();
+      // Эмодзи
+      ctx.font=`${o.r*1.5}px serif`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(o.emoji,0,1);
+      ctx.restore();
+    });
+    tapObjects = tapObjects.filter(o=>o.alive);
+
+    // Подсказка
+    if(tapObjects.length === 0){
+      ctx.fillStyle='rgba(107,125,179,0.5)';
+      ctx.font='11px -apple-system';
+      ctx.textAlign='center';
+      ctx.fillText('Объекты летят...', W/2, H*0.85);
+    }
+
+    // Мини-событие баннер
+    if(miniEventActive){
+      miniEventTimer--;
+      if(miniEventTimer <= 0) miniEventActive = null;
+      else {
+        const mins = Math.floor(miniEventTimer/60);
+        const secs = miniEventTimer%60;
+        ctx.fillStyle='rgba(245,197,24,0.15)';
+        ctx.strokeStyle='rgba(245,197,24,0.4)';
+        ctx.lineWidth=1;
+        roundRect(ctx, W/2-90, 8, 180, 28, 8);
+        ctx.fill();ctx.stroke();
+        ctx.fillStyle='#f5c518';
+        ctx.font='bold 11px -apple-system';
+        ctx.textAlign='center';
+        ctx.fillText(`${miniEventActive.icon} ${miniEventActive.name} · ${mins}:${String(secs).padStart(2,'0')}`, W/2, 27);
+      }
+    }
+
+  } else if(state === 'autopilot'){
+    // Красивый полёт — warp эффект
+    const cx=W/2, cy=H*0.42;
+    for(let i=0;i<25;i++){
+      const a = (i/25)*Math.PI*2;
+      const r1 = 15+i*6;
+      const r2 = r1+25+Math.sin(t*2+i)*3;
+      const op = 0.06+0.03*Math.sin(t+i);
+      ctx.strokeStyle=`rgba(120,160,255,${op})`;
+      ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.moveTo(cx+Math.cos(a)*r1, cy+Math.sin(a)*r1*0.4);
+      ctx.lineTo(cx+Math.cos(a)*r2, cy+Math.sin(a)*r2*0.4);
+      ctx.stroke();
+    }
+    // Статус
+    ctx.fillStyle='rgba(179,157,250,0.85)';
+    ctx.font='bold 12px -apple-system';
+    ctx.textAlign='center';
+    // Время полёта из G.currentPlanet
+    const planet = G.currentPlanet;
+    const label = planet ? `🛸 Летим к ${planet.name}` : '🛸 Автопилот активен';
+    ctx.fillText(label, cx, H-30);
+    ctx.fillStyle='rgba(107,125,179,0.6)';
+    ctx.font='10px -apple-system';
+    ctx.fillText('Ракета вернётся автоматически', cx, H-14);
+
+  } else if(state === 'flying'){
+    // В полёте без автопилота — таймер
+    const cx=W/2, cy=H*0.42;
+    ctx.strokeStyle='rgba(46,204,113,0.3)';
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(cx,cy,60,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='rgba(46,204,113,0.08)';
+    ctx.beginPath();ctx.arc(cx,cy,60,0,Math.PI*2);ctx.fill();
+    const planet = G.currentPlanet;
+    ctx.font='bold 13px -apple-system';
+    ctx.fillStyle='rgba(255,255,255,0.7)';
+    ctx.textAlign='center';
+    ctx.fillText(planet ? `✈️ Летим к ${planet.name}` : '✈️ В полёте', cx, cy-10);
+    ctx.font='10px -apple-system';
+    ctx.fillStyle='rgba(107,125,179,0.6)';
+    ctx.fillText('Вернись когда прилетит', cx, cy+10);
+    ctx.fillStyle='rgba(107,125,179,0.4)';
+    ctx.font='10px -apple-system';
+    ctx.fillText('Пока ракета летит — тапать нечего', cx, H-14);
+  }
+
+  // Частицы
+  tapParticles.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.1; p.life-=p.decay;
+    ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle=p.color;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2);ctx.fill();
+  });
+  tapParticles=tapParticles.filter(p=>p.life>0);
+  ctx.globalAlpha=1;
+
+  // Флоаты
+  tapFloats.forEach(f=>{
+    f.y+=f.vy; f.life-=0.025; f.vy*=0.95;
+    ctx.globalAlpha=f.life;
+    ctx.fillStyle=f.color;
+    ctx.font='bold 14px -apple-system';
+    ctx.textAlign='center';
+    ctx.shadowColor=f.color;
+    ctx.shadowBlur=8;
+    ctx.fillText(f.text, f.x, f.y);
+    ctx.shadowBlur=0;
+  });
+  tapFloats=tapFloats.filter(f=>f.life>0);
+  ctx.globalAlpha=1;
+
+  requestAnimationFrame(animateTapObjects);
+}
+
+// Вспомогательная функция
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+// Мини-события
+const MINI_EVENTS = [
+  {id:'meteor', name:'Метеоритный дождь', icon:'☄️', mult:2, duration:900, desc:'Все объекты дают ×2 топлива!'},
+  {id:'energy', name:'Энергетическая буря', icon:'⚡', mult:3, duration:600, desc:'Редкие объекты — утроенная награда!'},
+  {id:'crystal', name:'Кристальный ливень', icon:'💎', mult:2.5, duration:720, desc:'Кристаллов стало больше!'},
+];
+
+function trySpawnMiniEvent(){
+  if(miniEventActive) return;
+  const ev = MINI_EVENTS[Math.floor(Math.random()*MINI_EVENTS.length)];
+  miniEventActive = ev;
+  miniEventTimer = ev.duration;
+  showToast(`${ev.icon} ${ev.name} — ${ev.desc}`);
+  // Push через бота
+  apiPost('/mini_event_notify', {event: ev.id, name: ev.name});
+}
+
+
 window.onload = () => {
   initSplash();
   createStarsBg();
@@ -352,6 +705,7 @@ window.onload = () => {
   initBgCanvas();
   animateBg({primary:'#07091a',secondary:'#0d1228',stars:'#4f8ef7'}, null);
   initTapCanvas();
+  initTapObjects();
   initTelegram();
   setInterval(passiveTick,   1000);
   setInterval(saveFuel,      10000);
